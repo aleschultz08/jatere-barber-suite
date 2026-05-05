@@ -19,6 +19,7 @@ import {
   type MockBarber, type MockService, type MockBooking,
 } from "@/lib/barberStore";
 import { format } from "date-fns";
+import { supabase } from "@/integrations/supabase/client";
 
 type Tab = "barbers" | "services" | "bookings";
 
