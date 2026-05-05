@@ -149,26 +149,41 @@ const ClientDashboard = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="grid gap-2">
-              {SERVICES.map((s) => (
-                <button
-                  key={s.id}
-                  onClick={() => setServiceId(s.id)}
-                  className={cn(
-                    "text-left p-3 rounded-md border transition flex justify-between items-center",
-                    serviceId === s.id
-                      ? "border-gold bg-gold/10"
-                      : "border-border hover:border-gold/50",
-                  )}
-                >
-                  <div>
-                    <div className="font-medium">{s.name}</div>
-                    <div className="text-xs text-muted-foreground">
-                      ~{s.duration_min} min (estimado)
+              {SERVICES.map((s) => {
+                const checked = serviceIds.includes(s.id);
+                return (
+                  <button
+                    key={s.id}
+                    onClick={() => toggleService(s.id)}
+                    className={cn(
+                      "text-left p-3 rounded-md border transition flex justify-between items-center gap-3",
+                      checked ? "border-gold bg-gold/10" : "border-border hover:border-gold/50",
+                    )}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className={cn(
+                        "w-4 h-4 rounded border flex items-center justify-center",
+                        checked ? "bg-gold border-gold" : "border-border",
+                      )}>
+                        {checked && <Check className="w-3 h-3 text-primary-foreground" />}
+                      </span>
+                      <div>
+                        <div className="font-medium">{s.name}</div>
+                        <div className="text-xs text-muted-foreground">~{s.duration_min} min</div>
+                      </div>
                     </div>
-                  </div>
-                  <span className="text-gold font-semibold">{formatGs(s.price)}</span>
-                </button>
-              ))}
+                    <span className="text-gold font-semibold">{formatGs(s.price)}</span>
+                  </button>
+                );
+              })}
+              {selectedServices.length > 0 && (
+                <div className="mt-2 pt-3 border-t border-border text-sm flex justify-between">
+                  <span className="text-muted-foreground">
+                    {selectedServices.length} servicio{selectedServices.length > 1 ? "s" : ""} · ~{totalDuration} min
+                  </span>
+                  <span className="text-gold font-semibold">{formatGs(totalPrice)}</span>
+                </div>
+              )}
             </CardContent>
           </Card>
 
