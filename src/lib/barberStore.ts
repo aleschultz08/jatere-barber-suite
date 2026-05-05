@@ -289,7 +289,19 @@ export function isSlotTakenIn(
 
 export function getBookingPrice(b: MockBooking): number {
   if (typeof b.price === "number" && b.price > 0) return b.price;
-  if (typeof b.priceOverride === "number") return b.priceOverride;
+  if (typeof b.priceOverride === "number" && b.priceOverride > 0) return b.priceOverride;
+  // Sumar precios desde services[] (multi-servicio)
+  if (b.services && b.services.length > 0) {
+    const cache = getServices();
+    const total = b.services.reduce((sum, item) => {
+      const p = Number(item.price);
+      if (Number.isFinite(p) && p > 0) return sum + p;
+      const fallback = cache.find((s) => s.id === item.id);
+      return sum + (fallback?.price ?? 0);
+    }, 0);
+    if (total > 0) return total;
+  }
+  // Fallback al servicio principal
   const svc = getServices().find((s) => s.id === b.serviceId);
   return svc?.price ?? 0;
 }
