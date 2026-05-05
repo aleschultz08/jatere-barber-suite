@@ -47,7 +47,9 @@ const ClientDashboard = () => {
     return onStoreChange(refresh);
   }, []);
 
-  const service = SERVICES.find((s) => s.id === serviceId);
+  const selectedServices = SERVICES.filter((s) => serviceIds.includes(s.id));
+  const totalPrice = selectedServices.reduce((s, x) => s + x.price, 0);
+  const totalDuration = selectedServices.reduce((s, x) => s + x.duration_min, 0);
   const selectedBarber = barbers.find((b) => b.id === barberId);
   const dateKey = date ? format(date, "yyyy-MM-dd") : "";
 
@@ -61,33 +63,43 @@ const ClientDashboard = () => {
     [bookings, user],
   );
 
+  const toggleService = (id: string) => {
+    setServiceIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+    setSlot(null);
+  };
+
   const submit = async () => {
-    if (!user || !service || !selectedBarber || !date || !slot) return;
+    if (!user || selectedServices.length === 0 || !selectedBarber || !date || !slot) return;
     if (selectedBarber.status === "busy") {
       toast.error("Este barbero está marcado como ocupado.");
       return;
     }
-    if (isSlotTakenIn(bookings, selectedBarber.id, dateKey, slot, service.duration_min)) {
+    if (isSlotTakenIn(bookings, selectedBarber.id, dateKey, slot, totalDuration)) {
       toast.error("Ese horario ya fue reservado.");
       return;
     }
     setSubmitting(true);
     try {
+      const first = selectedServices[0];
+      const namesJoined = selectedServices.map((s) => s.name).join(" + ");
       await addBookingRemote({
         barberId: selectedBarber.id,
-        serviceId: service.id,
-        serviceName: service.name,
+        serviceId: first.id,
+        serviceName: namesJoined,
+        services: selectedServices.map((s) => ({
+          id: s.id, name: s.name, price: s.price, duration_min: s.duration_min,
+        })),
         date: dateKey,
         time: slot,
-        durationMin: service.duration_min,
-        price: service.price,
+        durationMin: totalDuration,
+        price: totalPrice,
         clientId: user.id,
         clientName: user.email ?? "",
         source: "online",
       });
       toast.success("¡Turno reservado!");
       setSlot(null);
-      setServiceId("");
+      setServiceIds([]);
       setDate(undefined);
       setTab("mine");
       refresh();
