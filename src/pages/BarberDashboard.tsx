@@ -149,7 +149,7 @@ const BarberDashboard = () => {
                       {svc?.name} · {b.clientName || "Cliente"}
                     </div>
                   </div>
-                  {svc && <span className="text-gold font-semibold">${svc.price}</span>}
+                  {svc && <span className="text-gold font-semibold">{formatGs(svc.price)}</span>}
                 </div>
               );
             })}
@@ -179,7 +179,7 @@ const BarberDashboard = () => {
                       {svc?.name} · {b.clientName || "Cliente"}
                     </div>
                   </div>
-                  {svc && <span className="text-gold font-semibold">${svc.price}</span>}
+                  {svc && <span className="text-gold font-semibold">{formatGs(svc.price)}</span>}
                 </div>
               );
             })}

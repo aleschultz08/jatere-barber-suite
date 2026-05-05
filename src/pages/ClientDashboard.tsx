@@ -129,7 +129,7 @@ const ClientDashboard = () => {
                       ~{s.duration_min} min (estimado)
                     </div>
                   </div>
-                  <span className="text-gold font-semibold">${s.price}</span>
+                  <span className="text-gold font-semibold">{formatGs(s.price)}</span>
                 </button>
               ))}
             </CardContent>
@@ -259,7 +259,7 @@ const ClientDashboard = () => {
                     </div>
                     <div>
                       <span className="text-muted-foreground">Precio:</span>{" "}
-                      <span className="text-gold font-semibold">${service.price}</span>
+                      <span className="text-gold font-semibold">{formatGs(service.price)}</span>
                     </div>
                   </div>
                   <Button
@@ -299,7 +299,7 @@ const ClientDashboard = () => {
                       {b.date} a las {b.time}
                     </div>
                     {svc && (
-                      <span className="text-sm text-gold">${svc.price}</span>
+                      <span className="text-sm text-gold">{formatGs(svc.price)}</span>
                     )}
                   </div>
                   <Button
