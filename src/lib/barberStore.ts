@@ -1,6 +1,5 @@
 // Store de la plataforma Jatere Barber.
-// - Servicios: localStorage (mock).
-// - Barberos y reservas: Supabase.
+// Todo va contra Supabase. Servicios cacheados en memoria por sesión.
 
 import { supabase } from "@/integrations/supabase/client";
 
@@ -13,7 +12,7 @@ export type MockBarber = {
 };
 
 export type MockService = {
-  id: string;
+  id: string; // UUID real de Supabase
   name: string;
   duration_min: number;
   price: number;
@@ -23,7 +22,7 @@ export type BookingStatus = "confirmed" | "in_progress" | "completed" | "cancell
 export type BookingSource = "online" | "walkin";
 
 export type BookingServiceItem = {
-  id: string;
+  id: string; // UUID real
   name: string;
   price: number;
   duration_min: number;
@@ -32,9 +31,9 @@ export type BookingServiceItem = {
 export type MockBooking = {
   id: string;
   barberId: string;
-  serviceId: string; // primer servicio (compatibilidad)
+  serviceId: string; // UUID del primer servicio (compatibilidad)
   serviceName?: string;
-  services?: BookingServiceItem[]; // múltiples servicios
+  services?: BookingServiceItem[];
   date: string;
   time: string;
   clientName?: string;
@@ -45,66 +44,68 @@ export type MockBooking = {
   price?: number;
 };
 
-const KEY_SERVICES = "jatere.services";
 const EVT = "jatere.store.changed";
-
-const DEFAULT_SERVICES: MockService[] = [
-  { id: "svc-corte", name: "Corte", duration_min: 30, price: 45000 },
-  { id: "svc-barba", name: "Barba", duration_min: 20, price: 20000 },
-  { id: "svc-ceja", name: "Ceja", duration_min: 10, price: 10000 },
-  { id: "svc-mascarilla", name: "Mascarilla", duration_min: 15, price: 10000 },
-  { id: "svc-lavado", name: "Lavado", duration_min: 15, price: 20000 },
-];
 
 export function formatGs(value: number): string {
   return `Gs. ${value.toLocaleString("es-PY")}`;
 }
 
-function read<T>(key: string, fallback: T): T {
-  if (typeof window === "undefined") return fallback;
-  try {
-    const raw = localStorage.getItem(key);
-    if (!raw) return fallback;
-    return JSON.parse(raw) as T;
-  } catch {
-    return fallback;
-  }
+// ===== Servicios (Supabase) =====
+let _servicesCache: MockService[] = [];
+
+export async function fetchServices(): Promise<MockService[]> {
+  const { data, error } = await supabase
+    .from("services")
+    .select("id, name, price, duration_min, active")
+    .eq("active", true)
+    .order("created_at", { ascending: true });
+  if (error || !data) return [];
+  _servicesCache = data.map((s) => ({
+    id: s.id,
+    name: s.name,
+    price: Number(s.price ?? 0),
+    duration_min: s.duration_min,
+  }));
+  return _servicesCache;
 }
 
-function write<T>(key: string, value: T) {
-  localStorage.setItem(key, JSON.stringify(value));
+// Acceso sincrónico a la última lista cargada
+export function getServices(): MockService[] {
+  return _servicesCache;
+}
+
+export async function saveServiceRemote(s: { id?: string; name: string; price: number; duration_min: number }) {
+  if (s.id) {
+    const { error } = await supabase
+      .from("services")
+      .update({ name: s.name, price: s.price, duration_min: s.duration_min })
+      .eq("id", s.id);
+    if (error) throw error;
+  } else {
+    const { error } = await supabase
+      .from("services")
+      .insert({ name: s.name, price: s.price, duration_min: s.duration_min, active: true });
+    if (error) throw error;
+  }
+  await fetchServices();
   window.dispatchEvent(new Event(EVT));
 }
 
-// ===== Servicios (local) =====
-export function getServices(): MockService[] {
-  const list = read<MockService[]>(KEY_SERVICES, []);
-  if (list.length === 0) {
-    write(KEY_SERVICES, DEFAULT_SERVICES);
-    return DEFAULT_SERVICES;
-  }
-  return list;
-}
-export const SERVICES: MockService[] = getServices();
-
-export function saveService(s: MockService) {
-  const list = getServices();
-  const idx = list.findIndex((x) => x.id === s.id);
-  const next = idx >= 0 ? list.map((x) => (x.id === s.id ? s : x)) : [...list, s];
-  write(KEY_SERVICES, next);
-  SERVICES.length = 0;
-  SERVICES.push(...next);
-}
-export function removeService(id: string) {
-  const next = getServices().filter((s) => s.id !== id);
-  write(KEY_SERVICES, next);
-  SERVICES.length = 0;
-  SERVICES.push(...next);
+export async function removeServiceRemote(id: string) {
+  // Soft delete: marcar inactivo para no romper bookings históricas.
+  const { error } = await supabase.from("services").update({ active: false }).eq("id", id);
+  if (error) throw error;
+  await fetchServices();
+  window.dispatchEvent(new Event(EVT));
 }
 
 // ===== Barberos (Supabase) =====
 if (typeof window !== "undefined") {
-  try { localStorage.removeItem("jatere.barbers"); localStorage.removeItem("jatere.bookings"); } catch { /* noop */ }
+  try {
+    localStorage.removeItem("jatere.barbers");
+    localStorage.removeItem("jatere.bookings");
+    localStorage.removeItem("jatere.services");
+  } catch { /* noop */ }
 }
 
 export async function fetchBarbers(): Promise<MockBarber[]> {

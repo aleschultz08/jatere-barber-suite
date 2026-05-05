@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 import { Pencil, Trash2, Plus, Users, Scissors, CalendarDays, DollarSign } from "lucide-react";
 import {
   fetchBarbers, removeBarberRemote, setBarberStatusRemote,
-  getServices, saveService, removeService,
+  fetchServices, saveServiceRemote, removeServiceRemote,
   fetchBookings, getBookingPrice, onStoreChange,
   formatGs,
   type MockBarber, type MockService, type MockBooking,
@@ -38,7 +38,7 @@ const AdminDashboard = () => {
 
   const refresh = () => {
     fetchBarbers().then(setBarbers);
-    setServices(getServices());
+    fetchServices().then(setServices);
     fetchBookings().then(setBookings);
   };
 
@@ -233,7 +233,7 @@ const BarbersTab = ({ barbers }: { barbers: MockBarber[] }) => {
 const ServicesTab = ({ services }: { services: MockService[] }) => {
   const [editing, setEditing] = useState<MockService | null>(null);
   const [open, setOpen] = useState(false);
-  const startNew = () => { setEditing({ id: `svc-${Date.now()}`, name: "", price: 0, duration_min: 30 }); setOpen(true); };
+  const startNew = () => { setEditing({ id: "", name: "", price: 0, duration_min: 30 }); setOpen(true); };
   const startEdit = (s: MockService) => { setEditing(s); setOpen(true); };
 
   return (
@@ -253,7 +253,11 @@ const ServicesTab = ({ services }: { services: MockService[] }) => {
             </div>
             <div className="flex gap-1">
               <Button size="sm" variant="ghost" onClick={() => startEdit(s)}><Pencil className="w-4 h-4" /></Button>
-              <Button size="sm" variant="ghost" onClick={() => { removeService(s.id); toast.success("Servicio eliminado"); }}>
+              <Button size="sm" variant="ghost" onClick={async () => {
+                if (!window.confirm("¿Eliminar este servicio?")) return;
+                try { await removeServiceRemote(s.id); toast.success("Servicio eliminado"); }
+                catch (e: any) { toast.error("No se pudo eliminar", { description: e?.message }); }
+              }}>
                 <Trash2 className="w-4 h-4 text-destructive" />
               </Button>
             </div>
@@ -280,9 +284,20 @@ const ServicesTab = ({ services }: { services: MockService[] }) => {
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
-            <Button className="bg-gold text-primary-foreground hover:bg-gold/90" onClick={() => {
+            <Button className="bg-gold text-primary-foreground hover:bg-gold/90" onClick={async () => {
               if (!editing?.name.trim()) return toast.error("Falta el nombre");
-              saveService(editing!); toast.success("Servicio guardado"); setOpen(false);
+              try {
+                await saveServiceRemote({
+                  id: editing.id || undefined,
+                  name: editing.name.trim(),
+                  price: Number(editing.price) || 0,
+                  duration_min: Number(editing.duration_min) || 30,
+                });
+                toast.success("Servicio guardado");
+                setOpen(false);
+              } catch (e: any) {
+                toast.error("No se pudo guardar", { description: e?.message });
+              }
             }}>Guardar</Button>
           </DialogFooter>
         </DialogContent>

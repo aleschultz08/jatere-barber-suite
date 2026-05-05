@@ -11,10 +11,10 @@ import { es } from "date-fns/locale";
 import { CalendarIcon, Clock, Scissors, User, X, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
-  SERVICES,
   formatGs,
   fetchBarbers,
   fetchBookings,
+  fetchServices,
   addBookingRemote,
   cancelBookingRemote,
   onStoreChange,
@@ -22,12 +22,14 @@ import {
   isSlotTakenIn,
   type MockBarber,
   type MockBooking,
+  type MockService,
 } from "@/lib/barberStore";
 
 const ClientDashboard = () => {
   const { user } = useAuth();
   const [tab, setTab] = useState<"new" | "mine">("new");
 
+  const [services, setServices] = useState<MockService[]>([]);
   const [barbers, setBarbers] = useState<MockBarber[]>([]);
   const [bookings, setBookings] = useState<MockBooking[]>([]);
 
@@ -38,6 +40,7 @@ const ClientDashboard = () => {
   const [submitting, setSubmitting] = useState(false);
 
   const refresh = () => {
+    fetchServices().then(setServices);
     fetchBarbers().then(setBarbers);
     fetchBookings().then(setBookings);
   };
@@ -47,7 +50,7 @@ const ClientDashboard = () => {
     return onStoreChange(refresh);
   }, []);
 
-  const selectedServices = SERVICES.filter((s) => serviceIds.includes(s.id));
+  const selectedServices = services.filter((s) => serviceIds.includes(s.id));
   const totalPrice = selectedServices.reduce((s, x) => s + x.price, 0);
   const totalDuration = selectedServices.reduce((s, x) => s + x.duration_min, 0);
   const selectedBarber = barbers.find((b) => b.id === barberId);
@@ -161,7 +164,7 @@ const ClientDashboard = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="grid gap-2">
-              {SERVICES.map((s) => {
+              {services.map((s) => {
                 const checked = serviceIds.includes(s.id);
                 return (
                   <button

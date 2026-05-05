@@ -22,7 +22,7 @@ import {
   UserPlus,
 } from "lucide-react";
 import {
-  getServices,
+  fetchServices,
   formatGs,
   fetchBarbers,
   fetchBookings,
@@ -62,7 +62,7 @@ const BarberDashboard = () => {
       setBarbers(list);
       setActiveId((prev) => prev || list[0]?.id || "");
     });
-    setServices(getServices());
+    fetchServices().then(setServices);
     fetchBookings().then(setBookings);
   };
 
