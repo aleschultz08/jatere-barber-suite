@@ -93,7 +93,8 @@ const Index = () => {
               <div key={s.name} className="group p-6 rounded-lg border border-border hover:border-gold/50 transition bg-background hover:shadow-gold">
                 <s.icon className="w-8 h-8 text-gold mb-4" />
                 <h3 className="text-xl font-display font-semibold mb-2">{s.name}</h3>
-                <p className="text-sm text-muted-foreground">{s.desc}</p>
+                <p className="text-sm text-muted-foreground mb-4">{s.desc}</p>
+                <p className="text-gold font-semibold">{s.price}</p>
               </div>
             ))}
           </div>
