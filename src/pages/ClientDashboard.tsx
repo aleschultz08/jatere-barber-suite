@@ -14,12 +14,12 @@ import {
   SERVICES,
   formatGs,
   fetchBarbers,
-  getBookings,
-  addBooking,
-  removeBooking,
+  fetchBookings,
+  addBookingRemote,
+  cancelBookingRemote,
   onStoreChange,
   generateSlots,
-  isSlotTaken,
+  isSlotTakenIn,
   type MockBarber,
   type MockBooking,
 } from "@/lib/barberStore";
@@ -35,10 +35,11 @@ const ClientDashboard = () => {
   const [barberId, setBarberId] = useState<string>("");
   const [date, setDate] = useState<Date | undefined>();
   const [slot, setSlot] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const refresh = () => {
     fetchBarbers().then(setBarbers);
-    setBookings(getBookings());
+    fetchBookings().then(setBookings);
   };
 
   useEffect(() => {
@@ -55,33 +56,56 @@ const ClientDashboard = () => {
   const myBookings = useMemo(
     () =>
       bookings
-        .filter((b) => b.clientName === (user?.email ?? ""))
+        .filter((b) => b.clientId === user?.id)
         .sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time)),
     [bookings, user],
   );
 
-  const submit = () => {
+  const submit = async () => {
     if (!user || !service || !selectedBarber || !date || !slot) return;
     if (selectedBarber.status === "busy") {
       toast.error("Este barbero está marcado como ocupado.");
       return;
     }
-    if (isSlotTaken(selectedBarber.id, dateKey, slot)) {
+    if (isSlotTakenIn(bookings, selectedBarber.id, dateKey, slot, service.duration_min)) {
       toast.error("Ese horario ya fue reservado.");
       return;
     }
-    addBooking({
-      barberId: selectedBarber.id,
-      serviceId: service.id,
-      date: dateKey,
-      time: slot,
-      clientName: user.email ?? "",
-    });
-    toast.success("¡Turno reservado!");
-    setSlot(null);
-    setServiceId("");
-    setDate(undefined);
-    setTab("mine");
+    setSubmitting(true);
+    try {
+      await addBookingRemote({
+        barberId: selectedBarber.id,
+        serviceId: service.id,
+        serviceName: service.name,
+        date: dateKey,
+        time: slot,
+        durationMin: service.duration_min,
+        price: service.price,
+        clientId: user.id,
+        clientName: user.email ?? "",
+        source: "online",
+      });
+      toast.success("¡Turno reservado!");
+      setSlot(null);
+      setServiceId("");
+      setDate(undefined);
+      setTab("mine");
+      refresh();
+    } catch (e: any) {
+      toast.error(e.message || "No se pudo reservar");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const cancel = async (id: string) => {
+    try {
+      await cancelBookingRemote(id);
+      toast.success("Turno cancelado");
+      refresh();
+    } catch (e: any) {
+      toast.error(e.message || "No se pudo cancelar");
+    }
   };
 
   return (
@@ -220,7 +244,7 @@ const ClientDashboard = () => {
               ) : (
                 <div className="grid grid-cols-3 gap-2">
                   {allSlots.map((t) => {
-                    const taken = isSlotTaken(selectedBarber.id, dateKey, t);
+                    const taken = isSlotTakenIn(bookings, selectedBarber.id, dateKey, t, service.duration_min);
                     const selected = slot === t;
                     return (
                       <button
@@ -265,10 +289,11 @@ const ClientDashboard = () => {
                   </div>
                   <Button
                     onClick={submit}
+                    disabled={submitting}
                     className="w-full bg-gold text-primary-foreground hover:bg-gold/90"
                   >
                     <Check className="w-4 h-4 mr-2" />
-                    Confirmar reserva
+                    {submitting ? "Reservando..." : "Confirmar reserva"}
                   </Button>
                 </div>
               )}
@@ -287,33 +312,29 @@ const ClientDashboard = () => {
             </Card>
           )}
           {myBookings.map((b) => {
-            const svc = SERVICES.find((s) => s.id === b.serviceId);
             const brb = barbers.find((x) => x.id === b.barberId);
+            const cancelled = b.status === "cancelled";
             return (
               <Card key={b.id} className="bg-card border-border">
                 <CardContent className="py-4 flex items-center justify-between gap-3 flex-wrap">
                   <div className="space-y-1">
                     <div className="font-medium">
-                      {svc?.name} · {brb?.name}
+                      {b.serviceName ?? "Servicio"} · {brb?.name ?? "—"}
                     </div>
                     <div className="text-sm text-muted-foreground">
                       {b.date} a las {b.time}
                     </div>
-                    {svc && (
-                      <span className="text-sm text-gold">{formatGs(svc.price)}</span>
+                    <span className="text-sm text-gold">{formatGs(b.price ?? 0)}</span>
+                    {cancelled && (
+                      <Badge variant="outline" className="border-destructive text-destructive ml-2">Cancelado</Badge>
                     )}
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      removeBooking(b.id);
-                      toast.success("Turno cancelado");
-                    }}
-                  >
-                    <X className="w-4 h-4 mr-1" />
-                    Cancelar
-                  </Button>
+                  {!cancelled && b.status !== "completed" && (
+                    <Button variant="outline" size="sm" onClick={() => cancel(b.id)}>
+                      <X className="w-4 h-4 mr-1" />
+                      Cancelar
+                    </Button>
+                  )}
                 </CardContent>
               </Card>
             );

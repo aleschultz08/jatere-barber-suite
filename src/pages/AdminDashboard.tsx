@@ -14,7 +14,7 @@ import { Pencil, Trash2, Plus, Users, Scissors, CalendarDays, DollarSign } from 
 import {
   fetchBarbers, removeBarberRemote, setBarberStatusRemote,
   getServices, saveService, removeService,
-  getBookings, getBookingPrice, onStoreChange,
+  fetchBookings, getBookingPrice, onStoreChange,
   formatGs,
   type MockBarber, type MockService, type MockBooking,
 } from "@/lib/barberStore";
@@ -39,7 +39,7 @@ const AdminDashboard = () => {
   const refresh = () => {
     fetchBarbers().then(setBarbers);
     setServices(getServices());
-    setBookings(getBookings());
+    fetchBookings().then(setBookings);
   };
 
   useEffect(() => { refresh(); return onStoreChange(refresh); }, []);

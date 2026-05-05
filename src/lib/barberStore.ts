@@ -1,5 +1,8 @@
-// Local mock store (sin DB) para disponibilidad y reservas.
-// Compartido entre paneles cliente, barbero y admin vía localStorage + eventos.
+// Store de la plataforma Jatere Barber.
+// - Servicios: localStorage (mock).
+// - Barberos y reservas: Supabase.
+
+import { supabase } from "@/integrations/supabase/client";
 
 export type BarberStatus = "available" | "busy";
 
@@ -23,16 +26,18 @@ export type MockBooking = {
   id: string;
   barberId: string;
   serviceId: string;
+  serviceName?: string;
   date: string; // YYYY-MM-DD
   time: string; // HH:mm
   clientName?: string;
+  clientId?: string | null;
   status: BookingStatus;
   source: BookingSource;
   priceOverride?: number;
+  price?: number;
 };
 
 const KEY_SERVICES = "jatere.services";
-const KEY_BOOKINGS = "jatere.bookings";
 const EVT = "jatere.store.changed";
 
 const DEFAULT_SERVICES: MockService[] = [
@@ -43,8 +48,6 @@ const DEFAULT_SERVICES: MockService[] = [
   { id: "svc-lavado", name: "Lavado", duration_min: 15, price: 20000 },
 ];
 
-
-// Formatea precios en guaraníes (Gs. 45.000)
 export function formatGs(value: number): string {
   return `Gs. ${value.toLocaleString("es-PY")}`;
 }
@@ -65,7 +68,7 @@ function write<T>(key: string, value: T) {
   window.dispatchEvent(new Event(EVT));
 }
 
-// ===== Servicios =====
+// ===== Servicios (local) =====
 export function getServices(): MockService[] {
   const list = read<MockService[]>(KEY_SERVICES, []);
   if (list.length === 0) {
@@ -74,7 +77,6 @@ export function getServices(): MockService[] {
   }
   return list;
 }
-// Compat: muchos componentes importan SERVICES como constante.
 export const SERVICES: MockService[] = getServices();
 
 export function saveService(s: MockService) {
@@ -92,14 +94,10 @@ export function removeService(id: string) {
   SERVICES.push(...next);
 }
 
-// ===== Barberos =====
-// Los barberos viven SOLO en Supabase (tabla `barbers`).
-// Eliminamos cualquier residuo en localStorage de versiones anteriores.
+// ===== Barberos (Supabase) =====
 if (typeof window !== "undefined") {
-  try { localStorage.removeItem("jatere.barbers"); } catch { /* noop */ }
+  try { localStorage.removeItem("jatere.barbers"); localStorage.removeItem("jatere.bookings"); } catch { /* noop */ }
 }
-
-import { supabase } from "@/integrations/supabase/client";
 
 export async function fetchBarbers(): Promise<MockBarber[]> {
   const { data, error } = await supabase
@@ -129,35 +127,93 @@ export async function removeBarberRemote(id: string) {
   window.dispatchEvent(new Event(EVT));
 }
 
-// ===== Reservas =====
-export function getBookings(): MockBooking[] {
-  return read<MockBooking[]>(KEY_BOOKINGS, []);
+// ===== Reservas (Supabase) =====
+// La tabla `bookings` guarda start_at/end_at como timestamptz.
+// Convertimos a y desde { date: 'YYYY-MM-DD', time: 'HH:mm' } en hora local.
+
+function toLocalISO(date: string, time: string, addMin = 0): string {
+  const [y, mo, d] = date.split("-").map(Number);
+  const [h, mi] = time.split(":").map(Number);
+  const dt = new Date(y, mo - 1, d, h, mi + addMin, 0, 0);
+  return dt.toISOString();
+}
+function fromIsoToLocalParts(iso: string): { date: string; time: string } {
+  const dt = new Date(iso);
+  const y = dt.getFullYear();
+  const m = String(dt.getMonth() + 1).padStart(2, "0");
+  const d = String(dt.getDate()).padStart(2, "0");
+  const hh = String(dt.getHours()).padStart(2, "0");
+  const mm = String(dt.getMinutes()).padStart(2, "0");
+  return { date: `${y}-${m}-${d}`, time: `${hh}:${mm}` };
 }
 
-export function addBooking(
-  b: Omit<MockBooking, "id" | "status" | "source"> & {
-    status?: BookingStatus;
-    source?: BookingSource;
-  },
-): MockBooking {
-  const all = getBookings();
-  const created: MockBooking = {
+function rowToBooking(row: any): MockBooking {
+  const { date, time } = fromIsoToLocalParts(row.start_at);
+  const source: BookingSource = row.booking_type === "walkin" ? "walkin" : "online";
+  return {
+    id: row.id,
+    barberId: row.barber_id,
+    serviceId: row.service_id,
+    serviceName: row.service_name ?? undefined,
+    date,
+    time,
+    clientName: row.notes ?? undefined,
+    clientId: row.client_id,
+    status: row.status as BookingStatus,
+    source,
+    price: Number(row.price ?? 0),
+  };
+}
+
+export async function fetchBookings(): Promise<MockBooking[]> {
+  const { data, error } = await supabase
+    .from("bookings")
+    .select("id, barber_id, service_id, service_name, start_at, end_at, status, price, notes, client_id, booking_type")
+    .order("start_at", { ascending: true });
+  if (error || !data) return [];
+  return data.map(rowToBooking);
+}
+
+export async function addBookingRemote(input: {
+  barberId: string;
+  serviceId: string;
+  date: string;
+  time: string;
+  durationMin: number;
+  serviceName: string;
+  price: number;
+  clientId?: string | null;
+  clientName?: string;
+  source?: BookingSource;
+}): Promise<MockBooking> {
+  const start_at = toLocalISO(input.date, input.time, 0);
+  const end_at = toLocalISO(input.date, input.time, Math.max(15, input.durationMin));
+  const payload: any = {
+    barber_id: input.barberId,
+    service_id: input.serviceId,
+    service_name: input.serviceName,
+    start_at,
+    end_at,
+    price: input.price,
     status: "confirmed",
-    source: "online",
-    ...b,
-    id: `bk-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-  } as MockBooking;
-  write(KEY_BOOKINGS, [...all, created]);
-  return created;
+    booking_type: input.source === "walkin" ? "walkin" : "online",
+    notes: input.clientName ?? null,
+    client_id: input.clientId ?? null,
+  };
+  const { data, error } = await supabase.from("bookings").insert(payload).select().single();
+  if (error) throw error;
+  window.dispatchEvent(new Event(EVT));
+  return rowToBooking(data);
 }
 
-export function updateBookingStatus(id: string, status: BookingStatus) {
-  const all = getBookings().map((b) => (b.id === id ? { ...b, status } : b));
-  write(KEY_BOOKINGS, all);
+export async function updateBookingStatusRemote(id: string, status: BookingStatus) {
+  const { error } = await supabase.from("bookings").update({ status }).eq("id", id);
+  if (error) throw error;
+  window.dispatchEvent(new Event(EVT));
 }
 
-export function removeBooking(id: string) {
-  write(KEY_BOOKINGS, getBookings().filter((b) => b.id !== id));
+export async function cancelBookingRemote(id: string) {
+  return updateBookingStatusRemote(id, "cancelled");
 }
 
 export function onStoreChange(cb: () => void): () => void {
@@ -170,11 +226,7 @@ export function onStoreChange(cb: () => void): () => void {
   };
 }
 
-// Horarios:
-// - Lun-Sáb: 09:30–21:00
-// - Domingo: 12:00–18:30
-// - Bloqueo almuerzo: 12:00–13:00 (no se muestran slots)
-// Intervalo: 30 min
+// ===== Horarios =====
 function toMin(t: string): number {
   const [h, m] = t.split(":").map(Number);
   return h * 60 + m;
@@ -183,14 +235,12 @@ function fromMin(m: number): string {
   return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
 }
 
-// date opcional (YYYY-MM-DD). Si no se pasa, devuelve unión genérica (lun-sáb).
 export function generateSlots(date?: string): string[] {
   let startMin = 9 * 60 + 30;
   let endMin = 21 * 60;
   if (date) {
-    // Parse local sin desfase de zona horaria
     const [y, m, d] = date.split("-").map(Number);
-    const dow = new Date(y, m - 1, d).getDay(); // 0 = dom
+    const dow = new Date(y, m - 1, d).getDay();
     if (dow === 0) {
       startMin = 12 * 60;
       endMin = 18 * 60 + 30;
@@ -206,25 +256,31 @@ export function generateSlots(date?: string): string[] {
   return out;
 }
 
-// Devuelve true si ese slot exacto ya está tomado
-// O si se solapa con la duración de otra cita activa del barbero ese día.
-export function isSlotTaken(barberId: string, date: string, time: string): boolean {
+// Verifica si un slot está ocupado dado un listado de reservas ya cargado
+export function isSlotTakenIn(
+  bookings: MockBooking[],
+  barberId: string,
+  date: string,
+  time: string,
+  durationMin = 30,
+): boolean {
   const slotStart = toMin(time);
   const slotEnd = slotStart + 30;
   const services = getServices();
-  return getBookings().some((b) => {
+  return bookings.some((b) => {
     if (b.barberId !== barberId) return false;
     if (b.date !== date) return false;
     if (b.status === "cancelled") return false;
     const bStart = toMin(b.time);
     const svc = services.find((s) => s.id === b.serviceId);
-    const dur = Math.max(30, svc?.duration_min ?? 30);
+    const dur = Math.max(30, svc?.duration_min ?? durationMin ?? 30);
     const bEnd = bStart + dur;
     return slotStart < bEnd && bStart < slotEnd;
   });
 }
 
 export function getBookingPrice(b: MockBooking): number {
+  if (typeof b.price === "number" && b.price > 0) return b.price;
   if (typeof b.priceOverride === "number") return b.priceOverride;
   const svc = getServices().find((s) => s.id === b.serviceId);
   return svc?.price ?? 0;

@@ -108,37 +108,43 @@ export type Database = {
       bookings: {
         Row: {
           barber_id: string
-          client_id: string
+          booking_type: string
+          client_id: string | null
           created_at: string
           end_at: string
           id: string
           notes: string | null
           price: number
           service_id: string
+          service_name: string | null
           start_at: string
           status: Database["public"]["Enums"]["booking_status"]
         }
         Insert: {
           barber_id: string
-          client_id: string
+          booking_type?: string
+          client_id?: string | null
           created_at?: string
           end_at: string
           id?: string
           notes?: string | null
           price?: number
           service_id: string
+          service_name?: string | null
           start_at: string
           status?: Database["public"]["Enums"]["booking_status"]
         }
         Update: {
           barber_id?: string
-          client_id?: string
+          booking_type?: string
+          client_id?: string | null
           created_at?: string
           end_at?: string
           id?: string
           notes?: string | null
           price?: number
           service_id?: string
+          service_name?: string | null
           start_at?: string
           status?: Database["public"]["Enums"]["booking_status"]
         }
@@ -243,7 +249,12 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "barber" | "client"
-      booking_status: "pending" | "confirmed" | "completed" | "cancelled"
+      booking_status:
+        | "pending"
+        | "confirmed"
+        | "completed"
+        | "cancelled"
+        | "in_progress"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -372,7 +383,13 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "barber", "client"],
-      booking_status: ["pending", "confirmed", "completed", "cancelled"],
+      booking_status: [
+        "pending",
+        "confirmed",
+        "completed",
+        "cancelled",
+        "in_progress",
+      ],
     },
   },
 } as const
