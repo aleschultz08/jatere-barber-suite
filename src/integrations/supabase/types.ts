@@ -108,37 +108,43 @@ export type Database = {
       bookings: {
         Row: {
           barber_id: string
-          client_id: string
+          booking_type: string
+          client_id: string | null
           created_at: string
           end_at: string
           id: string
           notes: string | null
           price: number
           service_id: string
+          service_name: string | null
           start_at: string
           status: Database["public"]["Enums"]["booking_status"]
         }
         Insert: {
           barber_id: string
-          client_id: string
+          booking_type?: string
+          client_id?: string | null
           created_at?: string
           end_at: string
           id?: string
           notes?: string | null
           price?: number
           service_id: string
+          service_name?: string | null
           start_at: string
           status?: Database["public"]["Enums"]["booking_status"]
         }
         Update: {
           barber_id?: string
-          client_id?: string
+          booking_type?: string
+          client_id?: string | null
           created_at?: string
           end_at?: string
           id?: string
           notes?: string | null
           price?: number
           service_id?: string
+          service_name?: string | null
           start_at?: string
           status?: Database["public"]["Enums"]["booking_status"]
         }
