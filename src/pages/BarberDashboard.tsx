@@ -113,15 +113,16 @@ const BarberDashboard = () => {
 
   const start = async (id: string) => {
     try { await updateBookingStatusRemote(id, "in_progress"); toast.success("Servicio iniciado"); }
-    catch (e: any) { toast.error(e.message || "Error"); }
+    catch (e: any) { toast.error("No se pudo iniciar", { description: e?.message }); }
   };
   const finish = async (id: string) => {
-    try { await updateBookingStatusRemote(id, "completed"); toast.success("Servicio finalizado"); }
-    catch (e: any) { toast.error(e.message || "Error"); }
+    try { await updateBookingStatusRemote(id, "completed"); toast.success("Servicio finalizado", { description: "Sumado a tus ingresos del día." }); }
+    catch (e: any) { toast.error("No se pudo finalizar", { description: e?.message }); }
   };
   const cancel = async (id: string) => {
-    try { await updateBookingStatusRemote(id, "cancelled"); toast.success("Turno cancelado · horario liberado"); }
-    catch (e: any) { toast.error(e.message || "Error"); }
+    if (!window.confirm("¿Cancelar este turno? Se liberará el horario.")) return;
+    try { await updateBookingStatusRemote(id, "cancelled"); toast.success("Turno cancelado", { description: "Horario liberado." }); }
+    catch (e: any) { toast.error("No se pudo cancelar", { description: e?.message }); }
   };
 
   const list = tab === "today" ? todayBookings : tab === "upcoming" ? upcoming : history;
@@ -351,7 +352,9 @@ const WalkinDialog = ({
     if (!barberId) return toast.error("Elegí un barbero");
     if (!serviceId || !svc) return toast.error("Elegí un servicio");
     if (!time) return toast.error("Elegí un horario");
-    if (isSlotTakenIn(bookings, barberId, date, time, svc.duration_min)) return toast.error("Ese horario ya está ocupado");
+    if (isSlotTakenIn(bookings, barberId, date, time, svc.duration_min)) {
+      return toast.error("Horario no disponible", { description: "Ya hay una reserva en ese tiempo." });
+    }
     const numericPrice = Number(price);
     setSaving(true);
     try {
@@ -366,12 +369,17 @@ const WalkinDialog = ({
         clientName: name.trim() || "Cliente presencial",
         source: "walkin",
       });
-      toast.success("Cliente sin reserva agregado");
+      toast.success("Cliente agregado", { description: `${svc.name} · ${time}` });
       reset();
       onOpenChange(false);
       onCreated();
     } catch (e: any) {
-      toast.error(e.message || "Error al guardar");
+      const msg = e?.message || "";
+      if (/horario|reserv|overlap|disponible/i.test(msg)) {
+        toast.error("Horario no disponible", { description: "Otra reserva ocupa ese tiempo." });
+      } else {
+        toast.error("Error al guardar", { description: msg });
+      }
     } finally {
       setSaving(false);
     }

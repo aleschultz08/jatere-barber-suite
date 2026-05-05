@@ -97,26 +97,38 @@ const ClientDashboard = () => {
         clientName: user.email ?? "",
         source: "online",
       });
-      toast.success("¡Turno reservado!");
+      toast.success("¡Reserva confirmada!", {
+        description: `${selectedServices.map((s) => s.name).join(" + ")} · ${dateKey} a las ${slot}`,
+      });
       setSlot(null);
       setServiceIds([]);
       setDate(undefined);
       setTab("mine");
       refresh();
     } catch (e: any) {
-      toast.error(e.message || "No se pudo reservar");
+      const msg = e?.message || "";
+      if (/horario|reserv|overlap|disponible/i.test(msg)) {
+        toast.error("Horario no disponible", {
+          description: "Otra reserva ocupa ese tiempo. Elegí otro horario.",
+        });
+      } else {
+        toast.error("No se pudo reservar", { description: msg });
+      }
     } finally {
       setSubmitting(false);
     }
   };
 
-  const cancel = async (id: string) => {
+  const cancel = async (id: string, info?: string) => {
+    if (!window.confirm("¿Cancelar este turno? Se liberará el horario.")) return;
     try {
       await cancelBookingRemote(id);
-      toast.success("Turno cancelado");
+      toast.success("Turno cancelado", {
+        description: info ? `Liberamos ${info}` : "El horario quedó libre.",
+      });
       refresh();
     } catch (e: any) {
-      toast.error(e.message || "No se pudo cancelar");
+      toast.error("No se pudo cancelar", { description: e?.message });
     }
   };
 
@@ -358,7 +370,7 @@ const ClientDashboard = () => {
                     )}
                   </div>
                   {!cancelled && b.status !== "completed" && (
-                    <Button variant="outline" size="sm" onClick={() => cancel(b.id)}>
+                    <Button variant="outline" size="sm" onClick={() => cancel(b.id, `${b.date} ${b.time}`)}>
                       <X className="w-4 h-4 mr-1" />
                       Cancelar
                     </Button>
