@@ -102,10 +102,14 @@ const BarberDashboard = () => {
     };
   }, [todayBookings]);
 
-  const setStatus = (status: "available" | "busy") => {
+  const setStatus = async (status: "available" | "busy") => {
     if (!active) return;
-    setBarberStatus(active.id, status);
-    toast.success(status === "available" ? "Marcado como disponible" : "Marcado como ocupado");
+    try {
+      await setBarberStatusRemote(active.id, status);
+      toast.success(status === "available" ? "Marcado como disponible" : "Marcado como ocupado");
+    } catch (e: any) {
+      toast.error(e.message || "No se pudo actualizar el estado");
+    }
   };
 
   const start = (id: string) => {
