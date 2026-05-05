@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { Check, Circle } from "lucide-react";
 import {
   SERVICES,
+  formatGs,
   getBarbers,
   getBookings,
   setBarberStatus,
