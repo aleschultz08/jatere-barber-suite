@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 import { Pencil, Trash2, Plus, Users, Scissors, CalendarDays, DollarSign } from "lucide-react";
 import {
   fetchBarbers, removeBarberRemote, setBarberStatusRemote,
-  getServices, saveService, removeService,
+  fetchServices, saveServiceRemote, removeServiceRemote,
   fetchBookings, getBookingPrice, onStoreChange,
   formatGs,
   type MockBarber, type MockService, type MockBooking,
@@ -38,7 +38,7 @@ const AdminDashboard = () => {
 
   const refresh = () => {
     fetchBarbers().then(setBarbers);
-    setServices(getServices());
+    fetchServices().then(setServices);
     fetchBookings().then(setBookings);
   };
 
