@@ -82,10 +82,11 @@ const BarberDashboard = () => {
     [bookings, activeId],
   );
 
-  const todayBookings = myBookings.filter((b) => b.date === today);
-  const upcoming = myBookings.filter((b) => b.date > today);
+  const isActive = (s: MockBooking["status"]) => s === "confirmed" || s === "in_progress";
+  const todayBookings = myBookings.filter((b) => b.date === today && isActive(b.status));
+  const upcoming = myBookings.filter((b) => b.date > today && isActive(b.status));
   const history = [...myBookings]
-    .filter((b) => b.date < today || b.status === "completed" || b.status === "cancelled")
+    .filter((b) => b.status === "completed" || b.status === "cancelled")
     .reverse();
 
   const stats = useMemo(() => {
