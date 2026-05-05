@@ -31,7 +31,6 @@ export type MockBooking = {
   priceOverride?: number;
 };
 
-const KEY_BARBERS = "jatere.barbers";
 const KEY_SERVICES = "jatere.services";
 const KEY_BOOKINGS = "jatere.bookings";
 const EVT = "jatere.store.changed";
