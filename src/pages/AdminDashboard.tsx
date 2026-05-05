@@ -94,8 +94,44 @@ const Stat = ({ icon, label, value }: { icon: React.ReactNode; label: string; va
 const BarbersTab = ({ barbers }: { barbers: MockBarber[] }) => {
   const [editing, setEditing] = useState<MockBarber | null>(null);
   const [open, setOpen] = useState(false);
-  const startNew = () => { setEditing({ id: `brb-${Date.now()}`, name: "", status: "available" }); setOpen(true); };
-  const startEdit = (b: MockBarber) => { setEditing(b); setOpen(true); };
+  const [isNew, setIsNew] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [creating, setCreating] = useState(false);
+
+  const startNew = () => {
+    setEditing({ id: `brb-${Date.now()}`, name: "", status: "available" });
+    setEmail(""); setPassword(""); setIsNew(true); setOpen(true);
+  };
+  const startEdit = (b: MockBarber) => {
+    setEditing(b); setEmail(""); setPassword(""); setIsNew(false); setOpen(true);
+  };
+
+  const handleSave = async () => {
+    if (!editing?.name.trim()) return toast.error("Falta el nombre");
+    if (isNew) {
+      if (!email.trim() || !password.trim()) return toast.error("Email y contraseña requeridos");
+      if (password.length < 6) return toast.error("Contraseña mínima 6 caracteres");
+      setCreating(true);
+      try {
+        const { data, error } = await supabase.functions.invoke("create-barber", {
+          body: { email: email.trim(), password, full_name: editing.name.trim() },
+        });
+        if (error || (data as any)?.error) throw new Error((data as any)?.error || error?.message);
+        saveBarber(editing);
+        toast.success("Barbero creado. Ya puede iniciar sesión.");
+        setOpen(false);
+      } catch (e: any) {
+        toast.error(e.message || "Error al crear barbero");
+      } finally {
+        setCreating(false);
+      }
+    } else {
+      saveBarber(editing);
+      toast.success("Barbero guardado");
+      setOpen(false);
+    }
+  };
 
   return (
     <Card className="bg-card border-border">
@@ -127,13 +163,26 @@ const BarbersTab = ({ barbers }: { barbers: MockBarber[] }) => {
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="bg-card border-border">
-          <DialogHeader><DialogTitle className="text-gold font-display">Barbero</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle className="text-gold font-display">{isNew ? "Nuevo barbero" : "Editar barbero"}</DialogTitle></DialogHeader>
           {editing && (
             <div className="space-y-3">
               <div>
                 <Label>Nombre</Label>
                 <Input value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} />
               </div>
+              {isNew && (
+                <>
+                  <div>
+                    <Label>Email</Label>
+                    <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="barbero@ejemplo.com" />
+                  </div>
+                  <div>
+                    <Label>Contraseña</Label>
+                    <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Mínimo 6 caracteres" />
+                  </div>
+                  <p className="text-xs text-muted-foreground">El barbero podrá iniciar sesión con este email y contraseña.</p>
+                </>
+              )}
               <div>
                 <Label>Estado</Label>
                 <select
@@ -147,13 +196,10 @@ const BarbersTab = ({ barbers }: { barbers: MockBarber[] }) => {
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
-            <Button className="bg-gold text-primary-foreground hover:bg-gold/90" onClick={() => {
-              if (!editing?.name.trim()) return toast.error("Falta el nombre");
-              saveBarber(editing!);
-              toast.success("Barbero guardado");
-              setOpen(false);
-            }}>Guardar</Button>
+            <Button variant="outline" onClick={() => setOpen(false)} disabled={creating}>Cancelar</Button>
+            <Button className="bg-gold text-primary-foreground hover:bg-gold/90" onClick={handleSave} disabled={creating}>
+              {creating ? "Creando..." : "Guardar"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
