@@ -164,7 +164,7 @@ const ClientDashboard = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="grid gap-2">
-              {SERVICES.map((s) => {
+              {services.map((s) => {
                 const checked = serviceIds.includes(s.id);
                 return (
                   <button
