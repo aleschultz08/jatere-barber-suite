@@ -43,10 +43,6 @@ const DEFAULT_SERVICES: MockService[] = [
   { id: "svc-lavado", name: "Lavado", duration_min: 15, price: 20000 },
 ];
 
-const DEFAULT_BARBERS: MockBarber[] = [
-  { id: "brb-jatere", name: "Jatere", status: "available" },
-  { id: "brb-luis", name: "Luis", status: "available" },
-];
 
 // Formatea precios en guaraníes (Gs. 45.000)
 export function formatGs(value: number): string {
