@@ -16,6 +16,8 @@ export type MockService = {
   price: number;
 };
 
+export type BookingStatus = "confirmed" | "completed" | "cancelled";
+
 export type MockBooking = {
   id: string;
   barberId: string;
@@ -23,6 +25,7 @@ export type MockBooking = {
   date: string; // YYYY-MM-DD
   time: string; // HH:mm
   clientName?: string;
+  status: BookingStatus;
 };
 
 const KEY_BARBERS = "jatere.barbers";
