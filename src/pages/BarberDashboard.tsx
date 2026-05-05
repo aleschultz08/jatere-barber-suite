@@ -300,7 +300,9 @@ const BarberDashboard = () => {
         onOpenChange={setWalkinOpen}
         barberId={activeId}
         services={services}
+        bookings={bookings}
         date={today}
+        onCreated={refresh}
       />
     </DashboardShell>
   );
@@ -311,18 +313,23 @@ const WalkinDialog = ({
   onOpenChange,
   barberId,
   services,
+  bookings,
   date,
+  onCreated,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   barberId: string;
   services: MockService[];
+  bookings: MockBooking[];
   date: string;
+  onCreated: () => void;
 }) => {
   const [name, setName] = useState("");
   const [serviceId, setServiceId] = useState("");
   const [time, setTime] = useState("");
   const [price, setPrice] = useState<string>("");
+  const [saving, setSaving] = useState(false);
 
   const slots = useMemo(() => generateSlots(date), [date]);
   const svc = services.find((s) => s.id === serviceId);
@@ -332,30 +339,37 @@ const WalkinDialog = ({
   }, [serviceId]);
 
   const reset = () => {
-    setName("");
-    setServiceId("");
-    setTime("");
-    setPrice("");
+    setName(""); setServiceId(""); setTime(""); setPrice("");
   };
 
-  const submit = () => {
+  const submit = async () => {
     if (!barberId) return toast.error("Elegí un barbero");
-    if (!serviceId) return toast.error("Elegí un servicio");
+    if (!serviceId || !svc) return toast.error("Elegí un servicio");
     if (!time) return toast.error("Elegí un horario");
-    if (isSlotTaken(barberId, date, time)) return toast.error("Ese horario ya está ocupado");
+    if (isSlotTakenIn(bookings, barberId, date, time, svc.duration_min)) return toast.error("Ese horario ya está ocupado");
     const numericPrice = Number(price);
-    addBooking({
-      barberId,
-      serviceId,
-      date,
-      time,
-      clientName: name.trim() || "Cliente presencial",
-      source: "walkin",
-      priceOverride: Number.isFinite(numericPrice) ? numericPrice : undefined,
-    });
-    toast.success("Cliente sin reserva agregado");
-    reset();
-    onOpenChange(false);
+    setSaving(true);
+    try {
+      await addBookingRemote({
+        barberId,
+        serviceId,
+        serviceName: svc.name,
+        date,
+        time,
+        durationMin: svc.duration_min,
+        price: Number.isFinite(numericPrice) && numericPrice > 0 ? numericPrice : svc.price,
+        clientName: name.trim() || "Cliente presencial",
+        source: "walkin",
+      });
+      toast.success("Cliente sin reserva agregado");
+      reset();
+      onOpenChange(false);
+      onCreated();
+    } catch (e: any) {
+      toast.error(e.message || "Error al guardar");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -393,11 +407,14 @@ const WalkinDialog = ({
                 className="w-full h-10 px-3 rounded-md bg-background border border-border text-sm"
               >
                 <option value="">--:--</option>
-                {slots.map((t) => (
-                  <option key={t} value={t} disabled={isSlotTaken(barberId, date, t)}>
-                    {t} {isSlotTaken(barberId, date, t) ? "(ocupado)" : ""}
-                  </option>
-                ))}
+                {slots.map((t) => {
+                  const taken = isSlotTakenIn(bookings, barberId, date, t, svc?.duration_min ?? 30);
+                  return (
+                    <option key={t} value={t} disabled={taken}>
+                      {t} {taken ? "(ocupado)" : ""}
+                    </option>
+                  );
+                })}
               </select>
             </div>
             <div>
