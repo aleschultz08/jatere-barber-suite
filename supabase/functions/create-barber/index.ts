@@ -14,7 +14,6 @@ Deno.serve(async (req) => {
     const anonKey = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    // Verify caller is admin
     const userClient = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },
     });
@@ -33,7 +32,6 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Faltan datos" }), { status: 400, headers: { ...cors, "Content-Type": "application/json" } });
     }
 
-    // Create user (auto-confirmed so they can login immediately)
     const { data: created, error: createErr } = await admin.auth.admin.createUser({
       email,
       password,
@@ -46,14 +44,23 @@ Deno.serve(async (req) => {
 
     const newUserId = created.user.id;
 
-    // Replace default 'client' role with 'barber'
     await admin.from("user_roles").delete().eq("user_id", newUserId);
     const { error: roleErr } = await admin.from("user_roles").insert({ user_id: newUserId, role: "barber" });
     if (roleErr) {
       return new Response(JSON.stringify({ error: roleErr.message }), { status: 500, headers: { ...cors, "Content-Type": "application/json" } });
     }
 
-    return new Response(JSON.stringify({ user_id: newUserId }), {
+    // Crear el registro en la tabla barbers vinculado al usuario
+    const { data: barberRow, error: barberErr } = await admin
+      .from("barbers")
+      .insert({ name: full_name, user_id: newUserId, active: true })
+      .select()
+      .single();
+    if (barberErr) {
+      return new Response(JSON.stringify({ error: barberErr.message }), { status: 500, headers: { ...cors, "Content-Type": "application/json" } });
+    }
+
+    return new Response(JSON.stringify({ user_id: newUserId, barber: barberRow }), {
       status: 200,
       headers: { ...cors, "Content-Type": "application/json" },
     });

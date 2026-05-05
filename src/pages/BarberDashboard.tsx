@@ -24,10 +24,10 @@ import {
 import {
   getServices,
   formatGs,
-  getBarbers,
+  fetchBarbers,
   getBookings,
   addBooking,
-  setBarberStatus,
+  setBarberStatusRemote,
   updateBookingStatus,
   removeBooking,
   onStoreChange,
@@ -59,11 +59,12 @@ const BarberDashboard = () => {
   const [walkinOpen, setWalkinOpen] = useState(false);
 
   const refresh = () => {
-    const list = getBarbers();
-    setBarbers(list);
+    fetchBarbers().then((list) => {
+      setBarbers(list);
+      setActiveId((prev) => prev || list[0]?.id || "");
+    });
     setServices(getServices());
     setBookings(getBookings());
-    setActiveId((prev) => prev || list[0]?.id || "");
   };
 
   useEffect(() => {
@@ -101,10 +102,14 @@ const BarberDashboard = () => {
     };
   }, [todayBookings]);
 
-  const setStatus = (status: "available" | "busy") => {
+  const setStatus = async (status: "available" | "busy") => {
     if (!active) return;
-    setBarberStatus(active.id, status);
-    toast.success(status === "available" ? "Marcado como disponible" : "Marcado como ocupado");
+    try {
+      await setBarberStatusRemote(active.id, status);
+      toast.success(status === "available" ? "Marcado como disponible" : "Marcado como ocupado");
+    } catch (e: any) {
+      toast.error(e.message || "No se pudo actualizar el estado");
+    }
   };
 
   const start = (id: string) => {
