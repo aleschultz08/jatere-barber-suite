@@ -22,13 +22,21 @@ export type MockService = {
 export type BookingStatus = "confirmed" | "in_progress" | "completed" | "cancelled";
 export type BookingSource = "online" | "walkin";
 
+export type BookingServiceItem = {
+  id: string;
+  name: string;
+  price: number;
+  duration_min: number;
+};
+
 export type MockBooking = {
   id: string;
   barberId: string;
-  serviceId: string;
+  serviceId: string; // primer servicio (compatibilidad)
   serviceName?: string;
-  date: string; // YYYY-MM-DD
-  time: string; // HH:mm
+  services?: BookingServiceItem[]; // múltiples servicios
+  date: string;
+  time: string;
   clientName?: string;
   clientId?: string | null;
   status: BookingStatus;
