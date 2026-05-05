@@ -93,28 +93,40 @@ export function removeService(id: string) {
 }
 
 // ===== Barberos =====
-export function getBarbers(): MockBarber[] {
-  const list = read<MockBarber[]>(KEY_BARBERS, []);
-  if (list.length === 0) {
-    write(KEY_BARBERS, DEFAULT_BARBERS);
-    return DEFAULT_BARBERS;
-  }
-  return list;
+// Los barberos viven SOLO en Supabase (tabla `barbers`).
+// Eliminamos cualquier residuo en localStorage de versiones anteriores.
+if (typeof window !== "undefined") {
+  try { localStorage.removeItem("jatere.barbers"); } catch { /* noop */ }
 }
 
-export function setBarberStatus(id: string, status: BarberStatus) {
-  const list = getBarbers().map((b) => (b.id === id ? { ...b, status } : b));
-  write(KEY_BARBERS, list);
+import { supabase } from "@/integrations/supabase/client";
+
+export async function fetchBarbers(): Promise<MockBarber[]> {
+  const { data, error } = await supabase
+    .from("barbers")
+    .select("id, name, active")
+    .order("created_at", { ascending: true });
+  if (error || !data) return [];
+  return data.map((b) => ({
+    id: b.id,
+    name: b.name,
+    status: b.active ? "available" : "busy",
+  }));
 }
 
-export function saveBarber(b: MockBarber) {
-  const list = getBarbers();
-  const idx = list.findIndex((x) => x.id === b.id);
-  const next = idx >= 0 ? list.map((x) => (x.id === b.id ? b : x)) : [...list, b];
-  write(KEY_BARBERS, next);
+export async function setBarberStatusRemote(id: string, status: BarberStatus) {
+  const { error } = await supabase
+    .from("barbers")
+    .update({ active: status === "available" })
+    .eq("id", id);
+  if (error) throw error;
+  window.dispatchEvent(new Event(EVT));
 }
-export function removeBarber(id: string) {
-  write(KEY_BARBERS, getBarbers().filter((b) => b.id !== id));
+
+export async function removeBarberRemote(id: string) {
+  const { error } = await supabase.from("barbers").delete().eq("id", id);
+  if (error) throw error;
+  window.dispatchEvent(new Event(EVT));
 }
 
 // ===== Reservas =====
