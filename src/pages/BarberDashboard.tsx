@@ -320,7 +320,7 @@ const WalkinDialog = ({
   const [time, setTime] = useState("");
   const [price, setPrice] = useState<string>("");
 
-  const slots = useMemo(() => generateSlots(), []);
+  const slots = useMemo(() => generateSlots(date), [date]);
   const svc = services.find((s) => s.id === serviceId);
 
   useEffect(() => {
