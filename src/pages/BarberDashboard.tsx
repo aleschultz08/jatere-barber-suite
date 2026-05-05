@@ -24,10 +24,10 @@ import {
 import {
   getServices,
   formatGs,
-  getBarbers,
+  fetchBarbers,
   getBookings,
   addBooking,
-  setBarberStatus,
+  setBarberStatusRemote,
   updateBookingStatus,
   removeBooking,
   onStoreChange,
