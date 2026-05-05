@@ -30,11 +30,17 @@ const KEY_BOOKINGS = "jatere.bookings";
 const EVT = "jatere.store.changed";
 
 export const SERVICES: MockService[] = [
-  { id: "svc-corte", name: "Corte clásico", duration_min: 30, price: 4000 },
-  { id: "svc-barba", name: "Arreglo de barba", duration_min: 20, price: 3000 },
-  { id: "svc-corte-barba", name: "Corte + barba", duration_min: 45, price: 6500 },
-  { id: "svc-visagismo", name: "Asesoría de visagismo", duration_min: 60, price: 8000 },
+  { id: "svc-corte", name: "Corte", duration_min: 30, price: 45000 },
+  { id: "svc-barba", name: "Barba", duration_min: 20, price: 20000 },
+  { id: "svc-ceja", name: "Ceja", duration_min: 10, price: 10000 },
+  { id: "svc-mascarilla", name: "Mascarilla", duration_min: 15, price: 10000 },
+  { id: "svc-lavado", name: "Lavado", duration_min: 15, price: 20000 },
 ];
+
+// Formatea precios en guaraníes (Gs. 45.000)
+export function formatGs(value: number): string {
+  return `Gs. ${value.toLocaleString("es-PY")}`;
+}
 
 const DEFAULT_BARBERS: MockBarber[] = [
   { id: "brb-jatere", name: "Jatere", status: "available" },
