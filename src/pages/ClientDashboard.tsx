@@ -37,7 +37,7 @@ const ClientDashboard = () => {
   const [slot, setSlot] = useState<string | null>(null);
 
   const refresh = () => {
-    setBarbers(getBarbers());
+    fetchBarbers().then(setBarbers);
     setBookings(getBookings());
   };
 
