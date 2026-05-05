@@ -275,8 +275,11 @@ export function isSlotTakenIn(
     if (b.date !== date) return false;
     if (b.status === "cancelled") return false;
     const bStart = toMin(b.time);
+    const multi = b.services && b.services.length > 0
+      ? b.services.reduce((s, x) => s + (x.duration_min || 0), 0)
+      : 0;
     const svc = services.find((s) => s.id === b.serviceId);
-    const dur = Math.max(30, svc?.duration_min ?? durationMin ?? 30);
+    const dur = Math.max(30, multi || svc?.duration_min || durationMin || 30);
     const bEnd = bStart + dur;
     return slotStart < bEnd && bStart < slotEnd;
   });
