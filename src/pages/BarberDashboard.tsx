@@ -59,11 +59,12 @@ const BarberDashboard = () => {
   const [walkinOpen, setWalkinOpen] = useState(false);
 
   const refresh = () => {
-    const list = getBarbers();
-    setBarbers(list);
+    fetchBarbers().then((list) => {
+      setBarbers(list);
+      setActiveId((prev) => prev || list[0]?.id || "");
+    });
     setServices(getServices());
     setBookings(getBookings());
-    setActiveId((prev) => prev || list[0]?.id || "");
   };
 
   useEffect(() => {
