@@ -302,12 +302,18 @@ const BookingsTab = ({ bookings, barbers, services }: { bookings: MockBooking[];
         {sorted.map((b) => {
           const svc = services.find(s => s.id === b.serviceId);
           const brb = barbers.find(x => x.id === b.barberId);
+          const items = b.services && b.services.length > 0
+            ? b.services
+            : (svc ? [{ id: svc.id, name: svc.name, price: svc.price, duration_min: svc.duration_min }] : []);
+          const namesJoined = items.map((s) => s.name).join(" + ") || (b.serviceName ?? "Servicio");
+          const totalDuration = items.reduce((s, x) => s + (x.duration_min || 0), 0);
           return (
             <div key={b.id} className="flex items-center justify-between p-3 border border-border rounded-md flex-wrap gap-2">
               <div className="space-y-0.5">
-                <div className="font-medium">{b.date} · {b.time} — {svc?.name ?? "Servicio"}</div>
+                <div className="font-medium">{b.date} · {b.time} — {namesJoined}</div>
                 <div className="text-xs text-muted-foreground">
                   {brb?.name ?? "—"} · {b.clientName || "Cliente"} · {b.source === "walkin" ? "Presencial" : "Online"}
+                  {totalDuration > 0 && <> · ~{totalDuration} min</>}
                 </div>
               </div>
               <div className="flex items-center gap-2">
