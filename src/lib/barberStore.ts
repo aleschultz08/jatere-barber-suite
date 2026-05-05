@@ -193,6 +193,7 @@ export async function addBookingRemote(input: {
   durationMin: number;
   serviceName: string;
   price: number;
+  services?: BookingServiceItem[];
   clientId?: string | null;
   clientName?: string;
   source?: BookingSource;
@@ -203,6 +204,7 @@ export async function addBookingRemote(input: {
     barber_id: input.barberId,
     service_id: input.serviceId,
     service_name: input.serviceName,
+    services: input.services ?? null,
     start_at,
     end_at,
     price: input.price,
