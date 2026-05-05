@@ -268,7 +268,8 @@ export function isSlotTakenIn(
   durationMin = 30,
 ): boolean {
   const slotStart = toMin(time);
-  const slotEnd = slotStart + 30;
+  // La duración del candidato también cuenta: un slot largo no puede pisar reservas posteriores.
+  const slotEnd = slotStart + Math.max(30, durationMin || 30);
   const services = getServices();
   return bookings.some((b) => {
     if (b.barberId !== barberId) return false;
@@ -279,7 +280,7 @@ export function isSlotTakenIn(
       ? b.services.reduce((s, x) => s + (x.duration_min || 0), 0)
       : 0;
     const svc = services.find((s) => s.id === b.serviceId);
-    const dur = Math.max(30, multi || svc?.duration_min || durationMin || 30);
+    const dur = Math.max(30, multi || svc?.duration_min || 30);
     const bEnd = bStart + dur;
     return slotStart < bEnd && bStart < slotEnd;
   });
