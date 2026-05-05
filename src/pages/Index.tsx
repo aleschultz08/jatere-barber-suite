@@ -4,11 +4,11 @@ import { Scissors, Sparkles, Calendar, Award } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
 const services = [
-  { name: "Corte", desc: "Cortes personalizados según visagismo", icon: Scissors },
-  { name: "Barba", desc: "Diseño y mantenimiento de barba", icon: Award },
-  { name: "Cejas", desc: "Perfilado masculino preciso", icon: Sparkles },
-  { name: "Mascarilla", desc: "Cuidado facial premium", icon: Sparkles },
-  { name: "Lavado", desc: "Lavado capilar y relajación", icon: Sparkles },
+  { name: "Corte", desc: "Cortes personalizados según visagismo", icon: Scissors, price: "Gs. 45.000" },
+  { name: "Barba", desc: "Diseño y mantenimiento de barba", icon: Award, price: "Gs. 20.000" },
+  { name: "Ceja", desc: "Perfilado masculino preciso", icon: Sparkles, price: "Gs. 10.000" },
+  { name: "Mascarilla", desc: "Cuidado facial premium", icon: Sparkles, price: "Gs. 10.000" },
+  { name: "Lavado", desc: "Lavado capilar y relajación", icon: Sparkles, price: "Gs. 20.000" },
 ];
 
 const Index = () => {
@@ -93,7 +93,8 @@ const Index = () => {
               <div key={s.name} className="group p-6 rounded-lg border border-border hover:border-gold/50 transition bg-background hover:shadow-gold">
                 <s.icon className="w-8 h-8 text-gold mb-4" />
                 <h3 className="text-xl font-display font-semibold mb-2">{s.name}</h3>
-                <p className="text-sm text-muted-foreground">{s.desc}</p>
+                <p className="text-sm text-muted-foreground mb-4">{s.desc}</p>
+                <p className="text-gold font-semibold">{s.price}</p>
               </div>
             ))}
           </div>
