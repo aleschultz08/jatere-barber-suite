@@ -3,6 +3,9 @@ import { DashboardShell } from "@/components/DashboardShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
@@ -15,17 +18,25 @@ import {
   Scissors,
   History,
   User,
+  Play,
+  UserPlus,
 } from "lucide-react";
 import {
-  SERVICES,
+  getServices,
   formatGs,
   getBarbers,
   getBookings,
+  addBooking,
   setBarberStatus,
   updateBookingStatus,
+  removeBooking,
   onStoreChange,
+  generateSlots,
+  isSlotTaken,
+  getBookingPrice,
   type MockBarber,
   type MockBooking,
+  type MockService,
 } from "@/lib/barberStore";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -34,19 +45,23 @@ type Tab = "today" | "upcoming" | "history";
 
 const STATUS_BADGE: Record<MockBooking["status"], { label: string; cls: string }> = {
   confirmed: { label: "Confirmado", cls: "border-gold text-gold" },
+  in_progress: { label: "En curso", cls: "border-primary text-primary" },
   completed: { label: "Completado", cls: "border-muted-foreground text-muted-foreground" },
   cancelled: { label: "Cancelado", cls: "border-destructive text-destructive" },
 };
 
 const BarberDashboard = () => {
   const [barbers, setBarbers] = useState<MockBarber[]>([]);
+  const [services, setServices] = useState<MockService[]>([]);
   const [bookings, setBookings] = useState<MockBooking[]>([]);
   const [activeId, setActiveId] = useState<string>("");
   const [tab, setTab] = useState<Tab>("today");
+  const [walkinOpen, setWalkinOpen] = useState(false);
 
   const refresh = () => {
     const list = getBarbers();
     setBarbers(list);
+    setServices(getServices());
     setBookings(getBookings());
     setActiveId((prev) => prev || list[0]?.id || "");
   };
@@ -76,14 +91,8 @@ const BarberDashboard = () => {
   const stats = useMemo(() => {
     const todayActive = todayBookings.filter((b) => b.status !== "cancelled");
     const todayCompleted = todayBookings.filter((b) => b.status === "completed");
-    const earned = todayCompleted.reduce((sum, b) => {
-      const svc = SERVICES.find((s) => s.id === b.serviceId);
-      return sum + (svc?.price ?? 0);
-    }, 0);
-    const projected = todayActive.reduce((sum, b) => {
-      const svc = SERVICES.find((s) => s.id === b.serviceId);
-      return sum + (svc?.price ?? 0);
-    }, 0);
+    const earned = todayCompleted.reduce((sum, b) => sum + getBookingPrice(b), 0);
+    const projected = todayActive.reduce((sum, b) => sum + getBookingPrice(b), 0);
     return {
       todayCount: todayActive.length,
       completed: todayCompleted.length,
@@ -95,32 +104,29 @@ const BarberDashboard = () => {
   const setStatus = (status: "available" | "busy") => {
     if (!active) return;
     setBarberStatus(active.id, status);
-    toast.success(
-      status === "available" ? "Marcado como disponible" : "Marcado como ocupado",
-    );
+    toast.success(status === "available" ? "Marcado como disponible" : "Marcado como ocupado");
   };
 
-  const markCompleted = (id: string) => {
+  const start = (id: string) => {
+    updateBookingStatus(id, "in_progress");
+    toast.success("Servicio iniciado");
+  };
+  const finish = (id: string) => {
     updateBookingStatus(id, "completed");
-    toast.success("Turno marcado como completado");
+    toast.success("Servicio finalizado");
   };
-
-  const markCancelled = (id: string) => {
+  const cancel = (id: string) => {
     updateBookingStatus(id, "cancelled");
-    toast.success("Turno cancelado");
+    toast.success("Turno cancelado · horario liberado");
   };
 
   const list = tab === "today" ? todayBookings : tab === "upcoming" ? upcoming : history;
 
   const renderBookingCard = (b: MockBooking) => {
-    const svc = SERVICES.find((s) => s.id === b.serviceId);
+    const svc = services.find((s) => s.id === b.serviceId);
     const badge = STATUS_BADGE[b.status];
-    const canAct = b.status === "confirmed";
     return (
-      <div
-        key={b.id}
-        className="p-4 rounded-md border border-border bg-background/30 space-y-3"
-      >
+      <div key={b.id} className="p-4 rounded-md border border-border bg-background/30 space-y-3">
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <div className="space-y-1">
             <div className="flex items-center gap-2 font-medium">
@@ -128,7 +134,7 @@ const BarberDashboard = () => {
               {b.date === today ? b.time : `${b.date} · ${b.time}`}
             </div>
             <div className="text-sm flex items-center gap-2 text-muted-foreground">
-              <Scissors className="w-3.5 h-3.5" /> {svc?.name}
+              <Scissors className="w-3.5 h-3.5" /> {svc?.name ?? "Servicio"}
               {svc && <span className="opacity-60">· ~{svc.duration_min} min</span>}
             </div>
             <div className="text-sm flex items-center gap-2 text-muted-foreground">
@@ -136,31 +142,39 @@ const BarberDashboard = () => {
             </div>
           </div>
           <div className="flex flex-col items-end gap-1">
-            <Badge variant="outline" className={cn(badge.cls)}>
-              {badge.label}
-            </Badge>
-            {svc && <span className="text-gold font-semibold text-sm">{formatGs(svc.price)}</span>}
+            <div className="flex gap-1">
+              <Badge variant="outline" className="border-border text-muted-foreground text-[10px]">
+                {b.source === "walkin" ? "Presencial" : "Online"}
+              </Badge>
+              <Badge variant="outline" className={cn(badge.cls)}>
+                {badge.label}
+              </Badge>
+            </div>
+            <span className="text-gold font-semibold text-sm">{formatGs(getBookingPrice(b))}</span>
           </div>
         </div>
-        {canAct && (
-          <div className="flex gap-2 pt-1">
-            <Button
-              size="sm"
-              onClick={() => markCompleted(b.id)}
-              className="bg-gold text-primary-foreground hover:bg-gold/90 flex-1"
-            >
-              <Check className="w-4 h-4 mr-1" /> Completar
+        <div className="flex flex-wrap gap-2 pt-1">
+          {b.status === "confirmed" && (
+            <Button size="sm" onClick={() => start(b.id)} className="bg-primary text-primary-foreground hover:bg-primary/90">
+              <Play className="w-4 h-4 mr-1" /> Iniciar
             </Button>
+          )}
+          {b.status === "in_progress" && (
+            <Button size="sm" onClick={() => finish(b.id)} className="bg-gold text-primary-foreground hover:bg-gold/90">
+              <Check className="w-4 h-4 mr-1" /> Finalizar
+            </Button>
+          )}
+          {(b.status === "confirmed" || b.status === "in_progress") && (
             <Button
               size="sm"
               variant="outline"
-              onClick={() => markCancelled(b.id)}
-              className="border-destructive text-destructive hover:bg-destructive/10 flex-1"
+              onClick={() => cancel(b.id)}
+              className="border-destructive text-destructive hover:bg-destructive/10"
             >
               <X className="w-4 h-4 mr-1" /> Cancelar
             </Button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     );
   };
@@ -175,10 +189,7 @@ const BarberDashboard = () => {
                 key={b.id}
                 variant={activeId === b.id ? "default" : "outline"}
                 onClick={() => setActiveId(b.id)}
-                className={cn(
-                  activeId === b.id &&
-                    "bg-gold text-primary-foreground hover:bg-gold/90",
-                )}
+                className={cn(activeId === b.id && "bg-gold text-primary-foreground hover:bg-gold/90")}
               >
                 {b.name}
               </Button>
@@ -195,9 +206,7 @@ const BarberDashboard = () => {
                 <Badge
                   variant="outline"
                   className={cn(
-                    active.status === "available"
-                      ? "border-gold text-gold"
-                      : "border-destructive text-destructive",
+                    active.status === "available" ? "border-gold text-gold" : "border-destructive text-destructive",
                   )}
                 >
                   <Circle
@@ -213,10 +222,8 @@ const BarberDashboard = () => {
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground mb-4">
-              Cuando estés <span className="text-gold">Disponible</span>, los clientes
-              pueden reservar contigo. Si pasás a{" "}
-              <span className="text-destructive">Ocupado</span>, no se aceptan nuevas
-              reservas.
+              Cuando estés <span className="text-gold">Disponible</span> los clientes pueden reservar. Si pasás a{" "}
+              <span className="text-destructive">Ocupado</span> no se aceptan nuevas reservas online.
             </p>
             <div className="grid grid-cols-2 gap-3">
               <Button
@@ -246,17 +253,25 @@ const BarberDashboard = () => {
           <StatCard icon={<Clock className="w-4 h-4" />} label="Proyectado" value={formatGs(stats.projected)} />
         </div>
 
-        {/* Tabs */}
-        <div className="flex gap-2">
-          <TabBtn active={tab === "today"} onClick={() => setTab("today")} icon={<CalendarDays className="w-4 h-4" />}>
-            Hoy ({todayBookings.length})
-          </TabBtn>
-          <TabBtn active={tab === "upcoming"} onClick={() => setTab("upcoming")} icon={<Clock className="w-4 h-4" />}>
-            Próximos ({upcoming.length})
-          </TabBtn>
-          <TabBtn active={tab === "history"} onClick={() => setTab("history")} icon={<History className="w-4 h-4" />}>
-            Historial
-          </TabBtn>
+        {/* Tabs + Walk-in */}
+        <div className="flex flex-wrap gap-2 items-center justify-between">
+          <div className="flex gap-2 flex-wrap">
+            <TabBtn active={tab === "today"} onClick={() => setTab("today")} icon={<CalendarDays className="w-4 h-4" />}>
+              Hoy ({todayBookings.length})
+            </TabBtn>
+            <TabBtn active={tab === "upcoming"} onClick={() => setTab("upcoming")} icon={<Clock className="w-4 h-4" />}>
+              Próximos ({upcoming.length})
+            </TabBtn>
+            <TabBtn active={tab === "history"} onClick={() => setTab("history")} icon={<History className="w-4 h-4" />}>
+              Historial
+            </TabBtn>
+          </div>
+          <Button
+            onClick={() => setWalkinOpen(true)}
+            className="bg-gold text-primary-foreground hover:bg-gold/90"
+          >
+            <UserPlus className="w-4 h-4 mr-1" /> Cliente sin reserva
+          </Button>
         </div>
 
         <Card className="bg-card border-border">
@@ -269,15 +284,132 @@ const BarberDashboard = () => {
           </CardHeader>
           <CardContent className="space-y-3">
             {list.length === 0 && (
-              <p className="text-sm text-muted-foreground text-center py-6">
-                No hay turnos para mostrar.
-              </p>
+              <p className="text-sm text-muted-foreground text-center py-6">No hay turnos para mostrar.</p>
             )}
             {list.map(renderBookingCard)}
           </CardContent>
         </Card>
       </div>
+
+      <WalkinDialog
+        open={walkinOpen}
+        onOpenChange={setWalkinOpen}
+        barberId={activeId}
+        services={services}
+        date={today}
+      />
     </DashboardShell>
+  );
+};
+
+const WalkinDialog = ({
+  open,
+  onOpenChange,
+  barberId,
+  services,
+  date,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  barberId: string;
+  services: MockService[];
+  date: string;
+}) => {
+  const [name, setName] = useState("");
+  const [serviceId, setServiceId] = useState("");
+  const [time, setTime] = useState("");
+  const [price, setPrice] = useState<string>("");
+
+  const slots = useMemo(() => generateSlots(), []);
+  const svc = services.find((s) => s.id === serviceId);
+
+  useEffect(() => {
+    if (svc) setPrice(String(svc.price));
+  }, [serviceId]);
+
+  const reset = () => {
+    setName("");
+    setServiceId("");
+    setTime("");
+    setPrice("");
+  };
+
+  const submit = () => {
+    if (!barberId) return toast.error("Elegí un barbero");
+    if (!serviceId) return toast.error("Elegí un servicio");
+    if (!time) return toast.error("Elegí un horario");
+    if (isSlotTaken(barberId, date, time)) return toast.error("Ese horario ya está ocupado");
+    const numericPrice = Number(price);
+    addBooking({
+      barberId,
+      serviceId,
+      date,
+      time,
+      clientName: name.trim() || "Cliente presencial",
+      source: "walkin",
+      priceOverride: Number.isFinite(numericPrice) ? numericPrice : undefined,
+    });
+    toast.success("Cliente sin reserva agregado");
+    reset();
+    onOpenChange(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { if (!v) reset(); onOpenChange(v); }}>
+      <DialogContent className="bg-card border-border">
+        <DialogHeader>
+          <DialogTitle className="font-display text-gold">+ Cliente sin reserva</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div>
+            <Label>Nombre (opcional)</Label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej: Juan" />
+          </div>
+          <div>
+            <Label>Servicio</Label>
+            <select
+              value={serviceId}
+              onChange={(e) => setServiceId(e.target.value)}
+              className="w-full h-10 px-3 rounded-md bg-background border border-border text-sm"
+            >
+              <option value="">Elegí un servicio</option>
+              {services.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name} · {formatGs(s.price)}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Hora</Label>
+              <select
+                value={time}
+                onChange={(e) => setTime(e.target.value)}
+                className="w-full h-10 px-3 rounded-md bg-background border border-border text-sm"
+              >
+                <option value="">--:--</option>
+                {slots.map((t) => (
+                  <option key={t} value={t} disabled={isSlotTaken(barberId, date, t)}>
+                    {t} {isSlotTaken(barberId, date, t) ? "(ocupado)" : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <Label>Precio (Gs.)</Label>
+              <Input type="number" value={price} onChange={(e) => setPrice(e.target.value)} />
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+          <Button onClick={submit} className="bg-gold text-primary-foreground hover:bg-gold/90">
+            Guardar turno
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 };
 
