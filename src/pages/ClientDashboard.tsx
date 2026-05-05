@@ -370,7 +370,7 @@ const ClientDashboard = () => {
                     )}
                   </div>
                   {!cancelled && b.status !== "completed" && (
-                    <Button variant="outline" size="sm" onClick={() => cancel(b.id)}>
+                    <Button variant="outline" size="sm" onClick={() => cancel(b.id, `${b.date} ${b.time}`)}>
                       <X className="w-4 h-4 mr-1" />
                       Cancelar
                     </Button>
