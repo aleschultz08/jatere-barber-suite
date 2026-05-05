@@ -50,7 +50,7 @@ const ClientDashboard = () => {
   const selectedBarber = barbers.find((b) => b.id === barberId);
   const dateKey = date ? format(date, "yyyy-MM-dd") : "";
 
-  const allSlots = useMemo(() => generateSlots(), []);
+  const allSlots = useMemo(() => generateSlots(dateKey || undefined), [dateKey]);
 
   const myBookings = useMemo(
     () =>
