@@ -31,7 +31,7 @@ const ClientDashboard = () => {
   const [barbers, setBarbers] = useState<MockBarber[]>([]);
   const [bookings, setBookings] = useState<MockBooking[]>([]);
 
-  const [serviceId, setServiceId] = useState<string>("");
+  const [serviceIds, setServiceIds] = useState<string[]>([]);
   const [barberId, setBarberId] = useState<string>("");
   const [date, setDate] = useState<Date | undefined>();
   const [slot, setSlot] = useState<string | null>(null);
