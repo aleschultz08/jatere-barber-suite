@@ -117,6 +117,7 @@ export type Database = {
           price: number
           service_id: string
           service_name: string | null
+          services: Json | null
           start_at: string
           status: Database["public"]["Enums"]["booking_status"]
         }
@@ -131,6 +132,7 @@ export type Database = {
           price?: number
           service_id: string
           service_name?: string | null
+          services?: Json | null
           start_at: string
           status?: Database["public"]["Enums"]["booking_status"]
         }
@@ -145,6 +147,7 @@ export type Database = {
           price?: number
           service_id?: string
           service_name?: string | null
+          services?: Json | null
           start_at?: string
           status?: Database["public"]["Enums"]["booking_status"]
         }

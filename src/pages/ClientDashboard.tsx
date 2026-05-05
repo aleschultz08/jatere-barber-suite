@@ -31,7 +31,7 @@ const ClientDashboard = () => {
   const [barbers, setBarbers] = useState<MockBarber[]>([]);
   const [bookings, setBookings] = useState<MockBooking[]>([]);
 
-  const [serviceId, setServiceId] = useState<string>("");
+  const [serviceIds, setServiceIds] = useState<string[]>([]);
   const [barberId, setBarberId] = useState<string>("");
   const [date, setDate] = useState<Date | undefined>();
   const [slot, setSlot] = useState<string | null>(null);
@@ -47,7 +47,9 @@ const ClientDashboard = () => {
     return onStoreChange(refresh);
   }, []);
 
-  const service = SERVICES.find((s) => s.id === serviceId);
+  const selectedServices = SERVICES.filter((s) => serviceIds.includes(s.id));
+  const totalPrice = selectedServices.reduce((s, x) => s + x.price, 0);
+  const totalDuration = selectedServices.reduce((s, x) => s + x.duration_min, 0);
   const selectedBarber = barbers.find((b) => b.id === barberId);
   const dateKey = date ? format(date, "yyyy-MM-dd") : "";
 
@@ -61,33 +63,43 @@ const ClientDashboard = () => {
     [bookings, user],
   );
 
+  const toggleService = (id: string) => {
+    setServiceIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+    setSlot(null);
+  };
+
   const submit = async () => {
-    if (!user || !service || !selectedBarber || !date || !slot) return;
+    if (!user || selectedServices.length === 0 || !selectedBarber || !date || !slot) return;
     if (selectedBarber.status === "busy") {
       toast.error("Este barbero está marcado como ocupado.");
       return;
     }
-    if (isSlotTakenIn(bookings, selectedBarber.id, dateKey, slot, service.duration_min)) {
+    if (isSlotTakenIn(bookings, selectedBarber.id, dateKey, slot, totalDuration)) {
       toast.error("Ese horario ya fue reservado.");
       return;
     }
     setSubmitting(true);
     try {
+      const first = selectedServices[0];
+      const namesJoined = selectedServices.map((s) => s.name).join(" + ");
       await addBookingRemote({
         barberId: selectedBarber.id,
-        serviceId: service.id,
-        serviceName: service.name,
+        serviceId: first.id,
+        serviceName: namesJoined,
+        services: selectedServices.map((s) => ({
+          id: s.id, name: s.name, price: s.price, duration_min: s.duration_min,
+        })),
         date: dateKey,
         time: slot,
-        durationMin: service.duration_min,
-        price: service.price,
+        durationMin: totalDuration,
+        price: totalPrice,
         clientId: user.id,
         clientName: user.email ?? "",
         source: "online",
       });
       toast.success("¡Turno reservado!");
       setSlot(null);
-      setServiceId("");
+      setServiceIds([]);
       setDate(undefined);
       setTab("mine");
       refresh();
@@ -137,26 +149,41 @@ const ClientDashboard = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="grid gap-2">
-              {SERVICES.map((s) => (
-                <button
-                  key={s.id}
-                  onClick={() => setServiceId(s.id)}
-                  className={cn(
-                    "text-left p-3 rounded-md border transition flex justify-between items-center",
-                    serviceId === s.id
-                      ? "border-gold bg-gold/10"
-                      : "border-border hover:border-gold/50",
-                  )}
-                >
-                  <div>
-                    <div className="font-medium">{s.name}</div>
-                    <div className="text-xs text-muted-foreground">
-                      ~{s.duration_min} min (estimado)
+              {SERVICES.map((s) => {
+                const checked = serviceIds.includes(s.id);
+                return (
+                  <button
+                    key={s.id}
+                    onClick={() => toggleService(s.id)}
+                    className={cn(
+                      "text-left p-3 rounded-md border transition flex justify-between items-center gap-3",
+                      checked ? "border-gold bg-gold/10" : "border-border hover:border-gold/50",
+                    )}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className={cn(
+                        "w-4 h-4 rounded border flex items-center justify-center",
+                        checked ? "bg-gold border-gold" : "border-border",
+                      )}>
+                        {checked && <Check className="w-3 h-3 text-primary-foreground" />}
+                      </span>
+                      <div>
+                        <div className="font-medium">{s.name}</div>
+                        <div className="text-xs text-muted-foreground">~{s.duration_min} min</div>
+                      </div>
                     </div>
-                  </div>
-                  <span className="text-gold font-semibold">{formatGs(s.price)}</span>
-                </button>
-              ))}
+                    <span className="text-gold font-semibold">{formatGs(s.price)}</span>
+                  </button>
+                );
+              })}
+              {selectedServices.length > 0 && (
+                <div className="mt-2 pt-3 border-t border-border text-sm flex justify-between">
+                  <span className="text-muted-foreground">
+                    {selectedServices.length} servicio{selectedServices.length > 1 ? "s" : ""} · ~{totalDuration} min
+                  </span>
+                  <span className="text-gold font-semibold">{formatGs(totalPrice)}</span>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -233,9 +260,9 @@ const ClientDashboard = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {!service || !selectedBarber || !date ? (
+              {selectedServices.length === 0 || !selectedBarber || !date ? (
                 <p className="text-sm text-muted-foreground">
-                  Elegí servicio, barbero y fecha.
+                  Elegí servicio(s), barbero y fecha.
                 </p>
               ) : selectedBarber.status === "busy" ? (
                 <p className="text-sm text-destructive">
@@ -244,7 +271,7 @@ const ClientDashboard = () => {
               ) : (
                 <div className="grid grid-cols-3 gap-2">
                   {allSlots.map((t) => {
-                    const taken = isSlotTakenIn(bookings, selectedBarber.id, dateKey, t, service.duration_min);
+                    const taken = isSlotTakenIn(bookings, selectedBarber.id, dateKey, t, totalDuration);
                     const selected = slot === t;
                     return (
                       <button
@@ -267,12 +294,13 @@ const ClientDashboard = () => {
                 </div>
               )}
 
-              {slot && service && selectedBarber && date && (
+              {slot && selectedServices.length > 0 && selectedBarber && date && (
                 <div className="mt-6 pt-4 border-t border-border space-y-3">
                   <div className="text-sm space-y-1">
                     <div>
-                      <span className="text-muted-foreground">Servicio:</span> {service.name}{" "}
-                      <span className="text-muted-foreground">(~{service.duration_min} min)</span>
+                      <span className="text-muted-foreground">Servicios:</span>{" "}
+                      {selectedServices.map((s) => s.name).join(" + ")}{" "}
+                      <span className="text-muted-foreground">(~{totalDuration} min)</span>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Barbero:</span>{" "}
@@ -283,8 +311,8 @@ const ClientDashboard = () => {
                       {format(date, "PPP", { locale: es })} a las {slot}
                     </div>
                     <div>
-                      <span className="text-muted-foreground">Precio:</span>{" "}
-                      <span className="text-gold font-semibold">{formatGs(service.price)}</span>
+                      <span className="text-muted-foreground">Total:</span>{" "}
+                      <span className="text-gold font-semibold">{formatGs(totalPrice)}</span>
                     </div>
                   </div>
                   <Button

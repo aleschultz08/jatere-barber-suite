@@ -22,13 +22,21 @@ export type MockService = {
 export type BookingStatus = "confirmed" | "in_progress" | "completed" | "cancelled";
 export type BookingSource = "online" | "walkin";
 
+export type BookingServiceItem = {
+  id: string;
+  name: string;
+  price: number;
+  duration_min: number;
+};
+
 export type MockBooking = {
   id: string;
   barberId: string;
-  serviceId: string;
+  serviceId: string; // primer servicio (compatibilidad)
   serviceName?: string;
-  date: string; // YYYY-MM-DD
-  time: string; // HH:mm
+  services?: BookingServiceItem[]; // múltiples servicios
+  date: string;
+  time: string;
   clientName?: string;
   clientId?: string | null;
   status: BookingStatus;
@@ -150,11 +158,14 @@ function fromIsoToLocalParts(iso: string): { date: string; time: string } {
 function rowToBooking(row: any): MockBooking {
   const { date, time } = fromIsoToLocalParts(row.start_at);
   const source: BookingSource = row.booking_type === "walkin" ? "walkin" : "online";
+  let services: BookingServiceItem[] | undefined;
+  if (Array.isArray(row.services)) services = row.services as BookingServiceItem[];
   return {
     id: row.id,
     barberId: row.barber_id,
     serviceId: row.service_id,
     serviceName: row.service_name ?? undefined,
+    services,
     date,
     time,
     clientName: row.notes ?? undefined,
@@ -168,7 +179,7 @@ function rowToBooking(row: any): MockBooking {
 export async function fetchBookings(): Promise<MockBooking[]> {
   const { data, error } = await supabase
     .from("bookings")
-    .select("id, barber_id, service_id, service_name, start_at, end_at, status, price, notes, client_id, booking_type")
+    .select("id, barber_id, service_id, service_name, services, start_at, end_at, status, price, notes, client_id, booking_type")
     .order("start_at", { ascending: true });
   if (error || !data) return [];
   return data.map(rowToBooking);
@@ -182,6 +193,7 @@ export async function addBookingRemote(input: {
   durationMin: number;
   serviceName: string;
   price: number;
+  services?: BookingServiceItem[];
   clientId?: string | null;
   clientName?: string;
   source?: BookingSource;
@@ -192,6 +204,7 @@ export async function addBookingRemote(input: {
     barber_id: input.barberId,
     service_id: input.serviceId,
     service_name: input.serviceName,
+    services: input.services ?? null,
     start_at,
     end_at,
     price: input.price,
@@ -262,8 +275,11 @@ export function isSlotTakenIn(
     if (b.date !== date) return false;
     if (b.status === "cancelled") return false;
     const bStart = toMin(b.time);
+    const multi = b.services && b.services.length > 0
+      ? b.services.reduce((s, x) => s + (x.duration_min || 0), 0)
+      : 0;
     const svc = services.find((s) => s.id === b.serviceId);
-    const dur = Math.max(30, svc?.duration_min ?? durationMin ?? 30);
+    const dur = Math.max(30, multi || svc?.duration_min || durationMin || 30);
     const bEnd = bStart + dur;
     return slotStart < bEnd && bStart < slotEnd;
   });
