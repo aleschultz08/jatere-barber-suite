@@ -12,6 +12,7 @@ import { CalendarIcon, Clock, Scissors, User, X, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   SERVICES,
+  formatGs,
   getBarbers,
   getBookings,
   addBooking,
