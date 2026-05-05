@@ -352,7 +352,9 @@ const WalkinDialog = ({
     if (!barberId) return toast.error("Elegí un barbero");
     if (!serviceId || !svc) return toast.error("Elegí un servicio");
     if (!time) return toast.error("Elegí un horario");
-    if (isSlotTakenIn(bookings, barberId, date, time, svc.duration_min)) return toast.error("Ese horario ya está ocupado");
+    if (isSlotTakenIn(bookings, barberId, date, time, svc.duration_min)) {
+      return toast.error("Horario no disponible", { description: "Ya hay una reserva en ese tiempo." });
+    }
     const numericPrice = Number(price);
     setSaving(true);
     try {
@@ -367,12 +369,17 @@ const WalkinDialog = ({
         clientName: name.trim() || "Cliente presencial",
         source: "walkin",
       });
-      toast.success("Cliente sin reserva agregado");
+      toast.success("Cliente agregado", { description: `${svc.name} · ${time}` });
       reset();
       onOpenChange(false);
       onCreated();
     } catch (e: any) {
-      toast.error(e.message || "Error al guardar");
+      const msg = e?.message || "";
+      if (/horario|reserv|overlap|disponible/i.test(msg)) {
+        toast.error("Horario no disponible", { description: "Otra reserva ocupa ese tiempo." });
+      } else {
+        toast.error("Error al guardar", { description: msg });
+      }
     } finally {
       setSaving(false);
     }
