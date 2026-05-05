@@ -12,7 +12,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Pencil, Trash2, Plus, Users, Scissors, CalendarDays, DollarSign } from "lucide-react";
 import {
-  getBarbers, saveBarber, removeBarber,
+  fetchBarbers, removeBarberRemote, setBarberStatusRemote,
   getServices, saveService, removeService,
   getBookings, getBookingPrice, onStoreChange,
   formatGs,
