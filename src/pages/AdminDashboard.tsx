@@ -118,18 +118,40 @@ const BarbersTab = ({ barbers }: { barbers: MockBarber[] }) => {
           body: { email: email.trim(), password, full_name: editing.name.trim() },
         });
         if (error || (data as any)?.error) throw new Error((data as any)?.error || error?.message);
-        saveBarber(editing);
         toast.success("Barbero creado. Ya puede iniciar sesión.");
         setOpen(false);
+        // refrescar lista desde Supabase
+        fetchBarbers().then(() => window.dispatchEvent(new Event("jatere.store.changed")));
       } catch (e: any) {
         toast.error(e.message || "Error al crear barbero");
       } finally {
         setCreating(false);
       }
     } else {
-      saveBarber(editing);
-      toast.success("Barbero guardado");
-      setOpen(false);
+      setCreating(true);
+      try {
+        const { error } = await supabase
+          .from("barbers")
+          .update({ name: editing.name.trim(), active: editing.status === "available" })
+          .eq("id", editing.id);
+        if (error) throw error;
+        await setBarberStatusRemote(editing.id, editing.status); // dispara evento
+        toast.success("Barbero guardado");
+        setOpen(false);
+      } catch (e: any) {
+        toast.error(e.message || "No se pudo guardar");
+      } finally {
+        setCreating(false);
+      }
+    }
+  };
+
+  const handleRemove = async (id: string) => {
+    try {
+      await removeBarberRemote(id);
+      toast.success("Barbero eliminado");
+    } catch (e: any) {
+      toast.error(e.message || "No se pudo eliminar");
     }
   };
 
