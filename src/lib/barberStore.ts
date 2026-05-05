@@ -163,24 +163,58 @@ export function onStoreChange(cb: () => void): () => void {
   };
 }
 
-// Genera slots 09:00 → 21:00 cada 30 min.
-export function generateSlots(): string[] {
+// Horarios:
+// - Lun-Sáb: 09:30–21:00
+// - Domingo: 12:00–18:30
+// - Bloqueo almuerzo: 12:00–13:00 (no se muestran slots)
+// Intervalo: 30 min
+function toMin(t: string): number {
+  const [h, m] = t.split(":").map(Number);
+  return h * 60 + m;
+}
+function fromMin(m: number): string {
+  return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+}
+
+// date opcional (YYYY-MM-DD). Si no se pasa, devuelve unión genérica (lun-sáb).
+export function generateSlots(date?: string): string[] {
+  let startMin = 9 * 60 + 30;
+  let endMin = 21 * 60;
+  if (date) {
+    // Parse local sin desfase de zona horaria
+    const [y, m, d] = date.split("-").map(Number);
+    const dow = new Date(y, m - 1, d).getDay(); // 0 = dom
+    if (dow === 0) {
+      startMin = 12 * 60;
+      endMin = 18 * 60 + 30;
+    }
+  }
+  const lunchStart = 12 * 60;
+  const lunchEnd = 13 * 60;
   const out: string[] = [];
-  for (let h = 9; h < 21; h++) {
-    out.push(`${String(h).padStart(2, "0")}:00`);
-    out.push(`${String(h).padStart(2, "0")}:30`);
+  for (let t = startMin; t < endMin; t += 30) {
+    if (t >= lunchStart && t < lunchEnd) continue;
+    out.push(fromMin(t));
   }
   return out;
 }
 
+// Devuelve true si ese slot exacto ya está tomado
+// O si se solapa con la duración de otra cita activa del barbero ese día.
 export function isSlotTaken(barberId: string, date: string, time: string): boolean {
-  return getBookings().some(
-    (b) =>
-      b.barberId === barberId &&
-      b.date === date &&
-      b.time === time &&
-      b.status !== "cancelled",
-  );
+  const slotStart = toMin(time);
+  const slotEnd = slotStart + 30;
+  const services = getServices();
+  return getBookings().some((b) => {
+    if (b.barberId !== barberId) return false;
+    if (b.date !== date) return false;
+    if (b.status === "cancelled") return false;
+    const bStart = toMin(b.time);
+    const svc = services.find((s) => s.id === b.serviceId);
+    const dur = Math.max(30, svc?.duration_min ?? 30);
+    const bEnd = bStart + dur;
+    return slotStart < bEnd && bStart < slotEnd;
+  });
 }
 
 export function getBookingPrice(b: MockBooking): number {
