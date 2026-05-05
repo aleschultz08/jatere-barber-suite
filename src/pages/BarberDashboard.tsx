@@ -128,6 +128,11 @@ const BarberDashboard = () => {
 
   const renderBookingCard = (b: MockBooking) => {
     const svc = services.find((s) => s.id === b.serviceId);
+    const items = b.services && b.services.length > 0
+      ? b.services
+      : (svc ? [{ id: svc.id, name: svc.name, price: svc.price, duration_min: svc.duration_min }] : []);
+    const totalDuration = items.reduce((s, x) => s + (x.duration_min || 0), 0);
+    const namesJoined = items.map((s) => s.name).join(" + ") || (b.serviceName ?? "Servicio");
     const badge = STATUS_BADGE[b.status];
     return (
       <div key={b.id} className="p-4 rounded-md border border-border bg-background/30 space-y-3">
@@ -138,8 +143,8 @@ const BarberDashboard = () => {
               {b.date === today ? b.time : `${b.date} · ${b.time}`}
             </div>
             <div className="text-sm flex items-center gap-2 text-muted-foreground">
-              <Scissors className="w-3.5 h-3.5" /> {svc?.name ?? "Servicio"}
-              {svc && <span className="opacity-60">· ~{svc.duration_min} min</span>}
+              <Scissors className="w-3.5 h-3.5" /> {namesJoined}
+              {totalDuration > 0 && <span className="opacity-60">· ~{totalDuration} min</span>}
             </div>
             <div className="text-sm flex items-center gap-2 text-muted-foreground">
               <User className="w-3.5 h-3.5" /> {b.clientName || "Cliente"}
