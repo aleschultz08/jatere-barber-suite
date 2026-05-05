@@ -158,11 +158,14 @@ function fromIsoToLocalParts(iso: string): { date: string; time: string } {
 function rowToBooking(row: any): MockBooking {
   const { date, time } = fromIsoToLocalParts(row.start_at);
   const source: BookingSource = row.booking_type === "walkin" ? "walkin" : "online";
+  let services: BookingServiceItem[] | undefined;
+  if (Array.isArray(row.services)) services = row.services as BookingServiceItem[];
   return {
     id: row.id,
     barberId: row.barber_id,
     serviceId: row.service_id,
     serviceName: row.service_name ?? undefined,
+    services,
     date,
     time,
     clientName: row.notes ?? undefined,
@@ -176,7 +179,7 @@ function rowToBooking(row: any): MockBooking {
 export async function fetchBookings(): Promise<MockBooking[]> {
   const { data, error } = await supabase
     .from("bookings")
-    .select("id, barber_id, service_id, service_name, start_at, end_at, status, price, notes, client_id, booking_type")
+    .select("id, barber_id, service_id, service_name, services, start_at, end_at, status, price, notes, client_id, booking_type")
     .order("start_at", { ascending: true });
   if (error || !data) return [];
   return data.map(rowToBooking);
