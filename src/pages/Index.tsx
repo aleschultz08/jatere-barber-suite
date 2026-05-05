@@ -4,11 +4,11 @@ import { Scissors, Sparkles, Calendar, Award } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
 const services = [
-  { name: "Corte", desc: "Cortes personalizados según visagismo", icon: Scissors },
-  { name: "Barba", desc: "Diseño y mantenimiento de barba", icon: Award },
-  { name: "Cejas", desc: "Perfilado masculino preciso", icon: Sparkles },
-  { name: "Mascarilla", desc: "Cuidado facial premium", icon: Sparkles },
-  { name: "Lavado", desc: "Lavado capilar y relajación", icon: Sparkles },
+  { name: "Corte", desc: "Cortes personalizados según visagismo", icon: Scissors, price: "Gs. 45.000" },
+  { name: "Barba", desc: "Diseño y mantenimiento de barba", icon: Award, price: "Gs. 20.000" },
+  { name: "Ceja", desc: "Perfilado masculino preciso", icon: Sparkles, price: "Gs. 10.000" },
+  { name: "Mascarilla", desc: "Cuidado facial premium", icon: Sparkles, price: "Gs. 10.000" },
+  { name: "Lavado", desc: "Lavado capilar y relajación", icon: Sparkles, price: "Gs. 20.000" },
 ];
 
 const Index = () => {
