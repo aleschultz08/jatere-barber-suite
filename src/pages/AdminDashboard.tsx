@@ -233,7 +233,7 @@ const BarbersTab = ({ barbers }: { barbers: MockBarber[] }) => {
 const ServicesTab = ({ services }: { services: MockService[] }) => {
   const [editing, setEditing] = useState<MockService | null>(null);
   const [open, setOpen] = useState(false);
-  const startNew = () => { setEditing({ id: `svc-${Date.now()}`, name: "", price: 0, duration_min: 30 }); setOpen(true); };
+  const startNew = () => { setEditing({ id: "", name: "", price: 0, duration_min: 30 }); setOpen(true); };
   const startEdit = (s: MockService) => { setEditing(s); setOpen(true); };
 
   return (
