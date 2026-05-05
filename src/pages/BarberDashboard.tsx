@@ -89,8 +89,11 @@ const BarberDashboard = () => {
     .reverse();
 
   const stats = useMemo(() => {
-    const todayActive = todayBookings.filter((b) => b.status !== "cancelled");
-    const todayCompleted = todayBookings.filter((b) => b.status === "completed");
+    // Solo reservas del barbero activo, en la fecha de hoy.
+    const ofToday = bookings.filter((b) => b.barberId === activeId && b.date === today);
+    const todayActive = ofToday.filter((b) => b.status !== "cancelled");
+    const todayCompleted = ofToday.filter((b) => b.status === "completed");
+    // SIEMPRE usar getBookingPrice → cubre price, priceOverride, services[] y fallback.
     const earned = todayCompleted.reduce((sum, b) => sum + getBookingPrice(b), 0);
     const projected = todayActive.reduce((sum, b) => sum + getBookingPrice(b), 0);
     return {
@@ -99,7 +102,8 @@ const BarberDashboard = () => {
       earned,
       projected,
     };
-  }, [todayBookings]);
+    // services en deps → recalcula cuando llega el caché de precios
+  }, [bookings, activeId, today, services]);
 
   const setStatus = async (status: "available" | "busy") => {
     if (!active) return;
