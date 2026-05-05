@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 import {
   SERVICES,
   formatGs,
-  getBarbers,
+  fetchBarbers,
   getBookings,
   addBooking,
   removeBooking,
