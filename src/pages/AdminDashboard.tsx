@@ -174,7 +174,7 @@ const BarbersTab = ({ barbers }: { barbers: MockBarber[] }) => {
             </div>
             <div className="flex gap-1">
               <Button size="sm" variant="ghost" onClick={() => startEdit(b)}><Pencil className="w-4 h-4" /></Button>
-              <Button size="sm" variant="ghost" onClick={() => { removeBarber(b.id); toast.success("Barbero eliminado"); }}>
+              <Button size="sm" variant="ghost" onClick={() => handleRemove(b.id)}>
                 <Trash2 className="w-4 h-4 text-destructive" />
               </Button>
             </div>
