@@ -37,7 +37,7 @@ const AdminDashboard = () => {
   const [bookings, setBookings] = useState<MockBooking[]>([]);
 
   const refresh = () => {
-    setBarbers(getBarbers());
+    fetchBarbers().then(setBarbers);
     setServices(getServices());
     setBookings(getBookings());
   };
