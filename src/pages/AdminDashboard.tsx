@@ -253,7 +253,11 @@ const ServicesTab = ({ services }: { services: MockService[] }) => {
             </div>
             <div className="flex gap-1">
               <Button size="sm" variant="ghost" onClick={() => startEdit(s)}><Pencil className="w-4 h-4" /></Button>
-              <Button size="sm" variant="ghost" onClick={() => { removeService(s.id); toast.success("Servicio eliminado"); }}>
+              <Button size="sm" variant="ghost" onClick={async () => {
+                if (!window.confirm("¿Eliminar este servicio?")) return;
+                try { await removeServiceRemote(s.id); toast.success("Servicio eliminado"); }
+                catch (e: any) { toast.error("No se pudo eliminar", { description: e?.message }); }
+              }}>
                 <Trash2 className="w-4 h-4 text-destructive" />
               </Button>
             </div>
