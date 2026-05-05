@@ -235,22 +235,12 @@ function fromMin(m: number): string {
   return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
 }
 
-export function generateSlots(date?: string): string[] {
-  let startMin = 9 * 60 + 30;
-  let endMin = 21 * 60;
-  if (date) {
-    const [y, m, d] = date.split("-").map(Number);
-    const dow = new Date(y, m - 1, d).getDay();
-    if (dow === 0) {
-      startMin = 12 * 60;
-      endMin = 18 * 60 + 30;
-    }
-  }
-  const lunchStart = 12 * 60;
-  const lunchEnd = 13 * 60;
+export function generateSlots(_date?: string): string[] {
+  // Horario único: todos los días de 09:00 a 21:00
+  const startMin = 9 * 60;
+  const endMin = 21 * 60;
   const out: string[] = [];
   for (let t = startMin; t < endMin; t += 30) {
-    if (t >= lunchStart && t < lunchEnd) continue;
     out.push(fromMin(t));
   }
   return out;
