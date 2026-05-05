@@ -49,7 +49,8 @@ const AdminDashboard = () => {
     () => bookings
       .filter((b) => b.date === today && b.status === "completed")
       .reduce((s, b) => s + getBookingPrice(b), 0),
-    [bookings, today],
+    // services en deps → recalcula cuando llega el caché de precios
+    [bookings, today, services],
   );
 
   return (
