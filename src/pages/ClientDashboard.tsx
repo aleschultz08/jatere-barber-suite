@@ -260,9 +260,9 @@ const ClientDashboard = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {!service || !selectedBarber || !date ? (
+              {selectedServices.length === 0 || !selectedBarber || !date ? (
                 <p className="text-sm text-muted-foreground">
-                  Elegí servicio, barbero y fecha.
+                  Elegí servicio(s), barbero y fecha.
                 </p>
               ) : selectedBarber.status === "busy" ? (
                 <p className="text-sm text-destructive">
@@ -271,7 +271,7 @@ const ClientDashboard = () => {
               ) : (
                 <div className="grid grid-cols-3 gap-2">
                   {allSlots.map((t) => {
-                    const taken = isSlotTakenIn(bookings, selectedBarber.id, dateKey, t, service.duration_min);
+                    const taken = isSlotTakenIn(bookings, selectedBarber.id, dateKey, t, totalDuration);
                     const selected = slot === t;
                     return (
                       <button
@@ -294,12 +294,13 @@ const ClientDashboard = () => {
                 </div>
               )}
 
-              {slot && service && selectedBarber && date && (
+              {slot && selectedServices.length > 0 && selectedBarber && date && (
                 <div className="mt-6 pt-4 border-t border-border space-y-3">
                   <div className="text-sm space-y-1">
                     <div>
-                      <span className="text-muted-foreground">Servicio:</span> {service.name}{" "}
-                      <span className="text-muted-foreground">(~{service.duration_min} min)</span>
+                      <span className="text-muted-foreground">Servicios:</span>{" "}
+                      {selectedServices.map((s) => s.name).join(" + ")}{" "}
+                      <span className="text-muted-foreground">(~{totalDuration} min)</span>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Barbero:</span>{" "}
@@ -310,8 +311,8 @@ const ClientDashboard = () => {
                       {format(date, "PPP", { locale: es })} a las {slot}
                     </div>
                     <div>
-                      <span className="text-muted-foreground">Precio:</span>{" "}
-                      <span className="text-gold font-semibold">{formatGs(service.price)}</span>
+                      <span className="text-muted-foreground">Total:</span>{" "}
+                      <span className="text-gold font-semibold">{formatGs(totalPrice)}</span>
                     </div>
                   </div>
                   <Button
