@@ -63,7 +63,7 @@ const BarberDashboard = () => {
       setActiveId((prev) => prev || list[0]?.id || "");
     });
     setServices(getServices());
-    setBookings(getBookings());
+    fetchBookings().then(setBookings);
   };
 
   useEffect(() => {
@@ -111,17 +111,17 @@ const BarberDashboard = () => {
     }
   };
 
-  const start = (id: string) => {
-    updateBookingStatus(id, "in_progress");
-    toast.success("Servicio iniciado");
+  const start = async (id: string) => {
+    try { await updateBookingStatusRemote(id, "in_progress"); toast.success("Servicio iniciado"); }
+    catch (e: any) { toast.error(e.message || "Error"); }
   };
-  const finish = (id: string) => {
-    updateBookingStatus(id, "completed");
-    toast.success("Servicio finalizado");
+  const finish = async (id: string) => {
+    try { await updateBookingStatusRemote(id, "completed"); toast.success("Servicio finalizado"); }
+    catch (e: any) { toast.error(e.message || "Error"); }
   };
-  const cancel = (id: string) => {
-    updateBookingStatus(id, "cancelled");
-    toast.success("Turno cancelado · horario liberado");
+  const cancel = async (id: string) => {
+    try { await updateBookingStatusRemote(id, "cancelled"); toast.success("Turno cancelado · horario liberado"); }
+    catch (e: any) { toast.error(e.message || "Error"); }
   };
 
   const list = tab === "today" ? todayBookings : tab === "upcoming" ? upcoming : history;
