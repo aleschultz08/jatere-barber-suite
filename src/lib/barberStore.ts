@@ -16,6 +16,8 @@ export type MockService = {
   price: number;
 };
 
+export type BookingStatus = "confirmed" | "completed" | "cancelled";
+
 export type MockBooking = {
   id: string;
   barberId: string;
@@ -23,6 +25,7 @@ export type MockBooking = {
   date: string; // YYYY-MM-DD
   time: string; // HH:mm
   clientName?: string;
+  status: BookingStatus;
 };
 
 const KEY_BARBERS = "jatere.barbers";
@@ -81,11 +84,16 @@ export function getBookings(): MockBooking[] {
   return read<MockBooking[]>(KEY_BOOKINGS, []);
 }
 
-export function addBooking(b: Omit<MockBooking, "id">): MockBooking {
+export function addBooking(b: Omit<MockBooking, "id" | "status"> & { status?: BookingStatus }): MockBooking {
   const all = getBookings();
-  const created: MockBooking = { ...b, id: `bk-${Date.now()}` };
+  const created: MockBooking = { status: "confirmed", ...b, id: `bk-${Date.now()}` } as MockBooking;
   write(KEY_BOOKINGS, [...all, created]);
   return created;
+}
+
+export function updateBookingStatus(id: string, status: BookingStatus) {
+  const all = getBookings().map((b) => (b.id === id ? { ...b, status } : b));
+  write(KEY_BOOKINGS, all);
 }
 
 export function removeBooking(id: string) {
@@ -114,6 +122,10 @@ export function generateSlots(): string[] {
 
 export function isSlotTaken(barberId: string, date: string, time: string): boolean {
   return getBookings().some(
-    (b) => b.barberId === barberId && b.date === date && b.time === time,
+    (b) =>
+      b.barberId === barberId &&
+      b.date === date &&
+      b.time === time &&
+      b.status !== "cancelled",
   );
 }
