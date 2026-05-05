@@ -22,7 +22,7 @@ import {
   UserPlus,
 } from "lucide-react";
 import {
-  getServices,
+  fetchServices,
   formatGs,
   fetchBarbers,
   fetchBookings,
