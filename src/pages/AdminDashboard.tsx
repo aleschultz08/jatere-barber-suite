@@ -284,9 +284,20 @@ const ServicesTab = ({ services }: { services: MockService[] }) => {
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
-            <Button className="bg-gold text-primary-foreground hover:bg-gold/90" onClick={() => {
+            <Button className="bg-gold text-primary-foreground hover:bg-gold/90" onClick={async () => {
               if (!editing?.name.trim()) return toast.error("Falta el nombre");
-              saveService(editing!); toast.success("Servicio guardado"); setOpen(false);
+              try {
+                await saveServiceRemote({
+                  id: editing.id || undefined,
+                  name: editing.name.trim(),
+                  price: Number(editing.price) || 0,
+                  duration_min: Number(editing.duration_min) || 30,
+                });
+                toast.success("Servicio guardado");
+                setOpen(false);
+              } catch (e: any) {
+                toast.error("No se pudo guardar", { description: e?.message });
+              }
             }}>Guardar</Button>
           </DialogFooter>
         </DialogContent>
