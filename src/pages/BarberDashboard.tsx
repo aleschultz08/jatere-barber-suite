@@ -113,15 +113,16 @@ const BarberDashboard = () => {
 
   const start = async (id: string) => {
     try { await updateBookingStatusRemote(id, "in_progress"); toast.success("Servicio iniciado"); }
-    catch (e: any) { toast.error(e.message || "Error"); }
+    catch (e: any) { toast.error("No se pudo iniciar", { description: e?.message }); }
   };
   const finish = async (id: string) => {
-    try { await updateBookingStatusRemote(id, "completed"); toast.success("Servicio finalizado"); }
-    catch (e: any) { toast.error(e.message || "Error"); }
+    try { await updateBookingStatusRemote(id, "completed"); toast.success("Servicio finalizado", { description: "Sumado a tus ingresos del día." }); }
+    catch (e: any) { toast.error("No se pudo finalizar", { description: e?.message }); }
   };
   const cancel = async (id: string) => {
-    try { await updateBookingStatusRemote(id, "cancelled"); toast.success("Turno cancelado · horario liberado"); }
-    catch (e: any) { toast.error(e.message || "Error"); }
+    if (!window.confirm("¿Cancelar este turno? Se liberará el horario.")) return;
+    try { await updateBookingStatusRemote(id, "cancelled"); toast.success("Turno cancelado", { description: "Horario liberado." }); }
+    catch (e: any) { toast.error("No se pudo cancelar", { description: e?.message }); }
   };
 
   const list = tab === "today" ? todayBookings : tab === "upcoming" ? upcoming : history;
