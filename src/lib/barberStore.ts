@@ -122,6 +122,10 @@ export function generateSlots(): string[] {
 
 export function isSlotTaken(barberId: string, date: string, time: string): boolean {
   return getBookings().some(
-    (b) => b.barberId === barberId && b.date === date && b.time === time,
+    (b) =>
+      b.barberId === barberId &&
+      b.date === date &&
+      b.time === time &&
+      b.status !== "cancelled",
   );
 }
